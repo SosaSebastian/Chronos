@@ -58,7 +58,7 @@ class AIAssistantManager(private val context: Context) {
     suspend fun askAssistant(
         userPrompt: String,
         medications: List<MedicationEntity>,
-        patientName: String = "Don Roberto"
+        patientName: String = "Sr. Sebastian"
     ): String = withContext(Dispatchers.IO) {
         val trimmed = userPrompt.trim()
         val lower = trimmed.lowercase()

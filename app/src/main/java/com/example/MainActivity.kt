@@ -35,6 +35,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val medicationViewModel: MedicationViewModel = viewModel()
             val currentScreen by medicationViewModel.currentScreen.collectAsStateWithLifecycle()
+            val currentFirebaseUser by medicationViewModel.currentFirebaseUser.collectAsStateWithLifecycle()
+            val authLoading by medicationViewModel.authLoading.collectAsStateWithLifecycle()
+            val authError by medicationViewModel.authError.collectAsStateWithLifecycle()
             val medications by medicationViewModel.medications.collectAsStateWithLifecycle()
             val userProfile by medicationViewModel.userProfile.collectAsStateWithLifecycle()
             val aiMessages by medicationViewModel.aiMessages.collectAsStateWithLifecycle()
@@ -79,13 +82,28 @@ class MainActivity : ComponentActivity() {
                                     onLoginSuccess = {
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
+                                    onFirebaseSignIn = { email, pass ->
+                                        medicationViewModel.signInWithFirebase(email, pass) {
+                                            medicationViewModel.navigateTo(AppScreen.DASHBOARD)
+                                        }
+                                    },
+                                    onFirebaseSignUp = { email, pass, name ->
+                                        medicationViewModel.signUpWithFirebase(email, pass, name) {
+                                            medicationViewModel.navigateTo(AppScreen.DASHBOARD)
+                                        }
+                                    },
+                                    isLoading = authLoading,
+                                    errorMessage = authError,
+                                    onClearError = {
+                                        medicationViewModel.clearAuthError()
+                                    },
                                     emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890"
                                 )
                             }
 
                             AppScreen.DASHBOARD -> {
                                 DashboardScreen(
-                                    patientName = userProfile?.fullName ?: "Don Roberto",
+                                    patientName = userProfile?.fullName ?: "Sr. Sebastian",
                                     emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
                                     medications = medications,
                                     notificationMessage = notificationMessage,
@@ -149,6 +167,7 @@ class MainActivity : ComponentActivity() {
                             AppScreen.PROFILE -> {
                                 ProfileScreen(
                                     profile = userProfile,
+                                    firebaseUser = currentFirebaseUser,
                                     onSaveProfile = { updated ->
                                         medicationViewModel.saveProfile(updated)
                                     },
@@ -159,7 +178,7 @@ class MainActivity : ComponentActivity() {
                                         medicationViewModel.navigateTo(screen)
                                     },
                                     onLogout = {
-                                        medicationViewModel.navigateTo(AppScreen.LOGIN)
+                                        medicationViewModel.signOutFirebase()
                                     }
                                 )
                             }

@@ -32,7 +32,7 @@ import com.example.ui.viewmodel.AppScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    patientName: String = "Don Roberto",
+    patientName: String = "Sr. Sebastian",
     emergencyPhone: String = "+57 310 456 7890",
     medications: List<MedicationEntity>,
     notificationMessage: String?,
@@ -261,7 +261,7 @@ fun DashboardScreen(
 
                     if (takenCount == totalCount && totalCount > 0) {
                         Text(
-                            text = "🎉 ¡Excelente Don Roberto! Has completado todas tus tomas del día.",
+                            text = "🎉 ¡Excelente $patientName! Has completado todas tus tomas del día.",
                             color = MintInteractive,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
@@ -298,7 +298,7 @@ fun DashboardScreen(
                 OutlinedButton(
                     onClick = onTestPushNotification,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MintInteractive),
-                    border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(MintInteractive)),
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = androidx.compose.ui.graphics.SolidColor(MintInteractive)),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .weight(1f)

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +29,7 @@ import com.example.ui.viewmodel.AppScreen
 @Composable
 fun ProfileScreen(
     profile: UserProfileEntity?,
+    firebaseUser: com.google.firebase.auth.FirebaseUser? = null,
     onSaveProfile: (UserProfileEntity) -> Unit,
     onTestPushNotification: () -> Unit,
     onNavigate: (AppScreen) -> Unit,
@@ -342,20 +344,71 @@ fun ProfileScreen(
                 }
             }
 
+            Spacer(Modifier.height(16.dp))
+
+            // Estado de la cuenta amigable para el paciente
+            Card(
+                colors = CardDefaults.cardColors(containerColor = NavySurface),
+                shape = RoundedCornerShape(20.dp),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(NavySurfaceVariant)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MintInteractive.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MintInteractive,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "Usuario Activo",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextWhite
+                        )
+                        val displayInfo = firebaseUser?.email ?: currentProfile.fullName.ifBlank { "Sesión Iniciada" }
+                        Text(
+                            text = displayInfo,
+                            fontSize = 14.sp,
+                            color = TextLightBlue
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(24.dp))
 
             // Logout Button
             OutlinedButton(
                 onClick = onLogout,
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusUrgent),
-                border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(StatusUrgent)),
+                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(StatusUrgent)
+                ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
                     .testTag("logout_btn")
             ) {
-                Icon(Icons.Default.ExitToApp, contentDescription = null)
+                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Cerrar Sesión", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

@@ -10,8 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -109,7 +108,7 @@ fun AIAssistantScreen(
                             shape = RoundedCornerShape(20.dp),
                             modifier = Modifier.padding(end = 8.dp)
                         ) {
-                            Icon(Icons.Default.VolumeOff, contentDescription = "Detener voz", modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.VolumeOff, contentDescription = "Detener voz", modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Pausar Voz", fontSize = 12.sp)
                         }
@@ -361,7 +360,7 @@ fun ChatBubbleItem(
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.VolumeUp,
+                                    Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = "Escuchar respuesta en voz alta",
                                     modifier = Modifier.size(18.dp)
                                 )

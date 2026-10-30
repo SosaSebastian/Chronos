@@ -30,8 +30,21 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
     private val repository: MedicationRepository
     private val aiManager = AIAssistantManager(application)
+    val authManager = com.example.auth.FirebaseAuthManager()
 
     val currentScreen = MutableStateFlow(AppScreen.LOGIN)
+
+    val currentFirebaseUser: StateFlow<com.google.firebase.auth.FirebaseUser?> = authManager.authState.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = authManager.currentUser
+    )
+
+    private val _authLoading = MutableStateFlow(false)
+    val authLoading: StateFlow<Boolean> = _authLoading.asStateFlow()
+
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError: StateFlow<String?> = _authError.asStateFlow()
 
     val medications: StateFlow<List<MedicationEntity>>
     val userProfile: StateFlow<UserProfileEntity?>
@@ -86,6 +99,57 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         return false
     }
 
+    fun clearAuthError() {
+        _authError.value = null
+    }
+
+    fun signInWithFirebase(email: String, pass: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            val result = authManager.signIn(email, pass)
+            _authLoading.value = false
+            result.onSuccess { user ->
+                val fallbackName = user.displayName?.takeIf { it.isNotBlank() }
+                    ?: user.email?.substringBefore("@")
+                    ?: "Sr. Sebastian"
+                userProfile.value?.let { current ->
+                    saveProfile(current.copy(fullName = fallbackName))
+                }
+                currentScreen.value = AppScreen.DASHBOARD
+                onSuccess()
+            }.onFailure { ex ->
+                _authError.value = ex.message ?: "Error al iniciar sesión con Firebase."
+            }
+        }
+    }
+
+    fun signUpWithFirebase(email: String, pass: String, fullName: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            val result = authManager.signUp(email, pass, fullName)
+            _authLoading.value = false
+            result.onSuccess { user ->
+                val cleanName = fullName.trim().ifEmpty {
+                    user.email?.substringBefore("@") ?: "Sr. Sebastian"
+                }
+                userProfile.value?.let { current ->
+                    saveProfile(current.copy(fullName = cleanName))
+                }
+                currentScreen.value = AppScreen.DASHBOARD
+                onSuccess()
+            }.onFailure { ex ->
+                _authError.value = ex.message ?: "Error al crear cuenta en Firebase."
+            }
+        }
+    }
+
+    fun signOutFirebase() {
+        authManager.signOut()
+        currentScreen.value = AppScreen.LOGIN
+    }
+
     fun toggleMedication(id: Long, currentTaken: Boolean) {
         viewModelScope.launch {
             repository.toggleTakenStatus(id, !currentTaken)
@@ -135,7 +199,7 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         _isAiLoading.value = true
 
         viewModelScope.launch {
-            val patientName = userProfile.value?.fullName ?: "Don Roberto"
+            val patientName = userProfile.value?.fullName ?: "Sr. Sebastian"
             val response = aiManager.askAssistant(cleanPrompt, medications.value, patientName)
 
             val assistantMessage = ChatMessage(
