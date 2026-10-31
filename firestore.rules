@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Regla de autenticación global
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Regla de propiedad: solo el usuario dueño del UID puede acceder a su información
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validación de campos básicos de usuario
+    function isValidUserData() {
+      return request.resource.data.keys().hasAll(['uid', 'email', 'nombre', 'edad'])
+        && request.resource.data.uid is string
+        && request.resource.data.email is string
+        && request.resource.data.nombre is string
+        && request.resource.data.edad is int;
+    }
+
+    // Validación de campos básicos de medicamento
+    function isValidMedicationData() {
+      return request.resource.data.keys().hasAll(['nombre', 'dosis', 'horaToma', 'categoria', 'activo'])
+        && request.resource.data.nombre is string
+        && request.resource.data.dosis is string
+        && request.resource.data.horaToma is string
+        && request.resource.data.categoria is string
+        && request.resource.data.activo is bool;
+    }
+
+    // Colección Principal: users/{userId}
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserData();
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      // Subcolección de Medicamentos: users/{userId}/medicamentos/{medicamentoId}
+      match /medicamentos/{medicamentoId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMedicationData();
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

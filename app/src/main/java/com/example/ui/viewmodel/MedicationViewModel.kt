@@ -9,6 +9,12 @@ import com.example.ai.MessageSender
 import com.example.data.local.AppDatabase
 import com.example.data.local.MedicationEntity
 import com.example.data.local.UserProfileEntity
+import com.example.data.model.ContactoEmergencia
+import com.example.data.model.Medicamento
+import com.example.data.model.Medico
+import com.example.data.model.Paciente
+import com.example.data.model.Resource
+import com.example.data.repository.FirebaseMedicationRepository
 import com.example.data.repository.MedicationRepository
 import com.example.notifications.PushReminderManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,15 +26,18 @@ import kotlinx.coroutines.launch
 
 enum class AppScreen {
     LOGIN,
+    REGISTRO_PACIENTE,
     DASHBOARD,
     ADD_MEDICATION,
     AI_ASSISTANT,
+    HISTORIAL_CUMPLIMIENTO,
     PROFILE
 }
 
 class MedicationViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: MedicationRepository
+    val firebaseRepo = FirebaseMedicationRepository()
     private val aiManager = AIAssistantManager(application)
     val authManager = com.example.auth.FirebaseAuthManager()
 
@@ -137,6 +146,23 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 userProfile.value?.let { current ->
                     saveProfile(current.copy(fullName = cleanName))
                 }
+                // Sincronizar perfil inicial en Firestore users/{userId}
+                val paciente = Paciente(
+                    uid = user.uid,
+                    email = user.email ?: email,
+                    nombre = cleanName,
+                    edad = 73,
+                    tipoSangre = "O+",
+                    medico = Medico(nombre = "Dra. Sara Martinez", especialidad = "Cardióloga"),
+                    contactoEmergencia = ContactoEmergencia(
+                        nombre = "Isabela Sosa",
+                        parentesco = "Hija",
+                        telefono = "+57 310 456 7890"
+                    )
+                )
+                launch {
+                    firebaseRepo.registerUserAndCreateProfile(email, pass, paciente)
+                }
                 currentScreen.value = AppScreen.DASHBOARD
                 onSuccess()
             }.onFailure { ex ->
@@ -177,6 +203,22 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 requiresFood = requiresFood
             )
             repository.addMedication(entity)
+
+            // Persistencia en subcolección Cloud Firestore users/{userId}/medicamentos
+            authManager.currentUser?.uid?.let { uid ->
+                val firestoreMed = Medicamento(
+                    nombre = name,
+                    dosis = dosage,
+                    horaToma = scheduleTime,
+                    categoria = category,
+                    indicaciones = instructions,
+                    activo = true
+                )
+                launch {
+                    firebaseRepo.addMedicamento(uid, firestoreMed)
+                }
+            }
+
             currentScreen.value = AppScreen.DASHBOARD
         }
     }

@@ -92,6 +92,9 @@ class MainActivity : ComponentActivity() {
                                             medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                         }
                                     },
+                                    onNavigateToRegistroPaciente = {
+                                        medicationViewModel.navigateTo(AppScreen.REGISTRO_PACIENTE)
+                                    },
                                     isLoading = authLoading,
                                     errorMessage = authError,
                                     onClearError = {
@@ -101,45 +104,83 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            AppScreen.REGISTRO_PACIENTE -> {
+                                RegistroPacienteScreen(
+                                    onRegistroExitoso = { paciente ->
+                                        userProfile?.let { current ->
+                                            medicationViewModel.saveProfile(
+                                                current.copy(
+                                                    fullName = paciente.nombre,
+                                                    emergencyContactName = paciente.contactoEmergencia.nombre,
+                                                    emergencyContactPhone = paciente.contactoEmergencia.telefono
+                                                )
+                                            )
+                                        }
+                                        medicationViewModel.navigateTo(AppScreen.DASHBOARD)
+                                    },
+                                    onVolver = {
+                                        medicationViewModel.navigateTo(AppScreen.LOGIN)
+                                    }
+                                )
+                            }
+
                             AppScreen.DASHBOARD -> {
-                                DashboardScreen(
+                                DashboardMedicamentosScreen(
                                     patientName = userProfile?.fullName ?: "Sr. Sebastian",
                                     emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
-                                    medications = medications,
-                                    notificationMessage = notificationMessage,
-                                    onClearNotificationMessage = {
-                                        medicationViewModel.clearNotificationMessage()
+                                    onNavigateToRegistrar = {
+                                        medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     },
-                                    onToggleMedication = { id, isTaken ->
-                                        medicationViewModel.toggleMedication(id, isTaken)
+                                    onNavigateToAsistenteIa = {
+                                        medicationViewModel.navigateTo(AppScreen.AI_ASSISTANT)
                                     },
-                                    onDeleteMedication = { id ->
-                                        medicationViewModel.deleteMedication(id)
+                                    onNavigateToPerfil = {
+                                        medicationViewModel.navigateTo(AppScreen.PROFILE)
                                     },
-                                    onNavigate = { screen ->
-                                        medicationViewModel.navigateTo(screen)
+                                    onNavigateToHistorial = {
+                                        medicationViewModel.navigateTo(AppScreen.HISTORIAL_CUMPLIMIENTO)
+                                    }
+                                )
+                            }
+
+                            AppScreen.HISTORIAL_CUMPLIMIENTO -> {
+                                HistorialCumplimientoScreen(
+                                    patientName = userProfile?.fullName ?: "Sr. Sebastian Sosa",
+                                    patientAge = userProfile?.age ?: 73,
+                                    bloodType = userProfile?.bloodType ?: "O+",
+                                    doctorName = userProfile?.doctorName ?: "Dra. Sara Martinez (Cardióloga)",
+                                    emergencyContact = userProfile?.emergencyContactName ?: "Isabela Sosa (Hija)",
+                                    emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
+                                    onNavigateToDashboard = {
+                                        medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
-                                    onTestPushNotification = {
-                                        medicationViewModel.testPushNotification()
+                                    onNavigateToAsistenteIa = {
+                                        medicationViewModel.navigateTo(AppScreen.AI_ASSISTANT)
+                                    },
+                                    onNavigateToPerfil = {
+                                        medicationViewModel.navigateTo(AppScreen.PROFILE)
                                     }
                                 )
                             }
 
                             AppScreen.ADD_MEDICATION -> {
-                                AddMedicationScreen(
-                                    onBack = {
+                                RegistrarMedicamentoScreen(
+                                    onMedicamentoGuardado = { _ ->
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
-                                    onSave = { name, dosage, scheduleTime, freq, instructions, category, requiresFood ->
+                                    onSyncLocal = { name, dosage, scheduleTime, category, instructions ->
                                         medicationViewModel.addMedication(
                                             name = name,
                                             dosage = dosage,
                                             scheduleTime = scheduleTime,
-                                            frequencyHours = freq,
+                                            frequencyHours = 12,
                                             instructions = instructions,
                                             category = category,
-                                            requiresFood = requiresFood
+                                            requiresFood = true
                                         )
+                                    },
+                                    onVolver = {
+                                        medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     }
                                 )
                             }

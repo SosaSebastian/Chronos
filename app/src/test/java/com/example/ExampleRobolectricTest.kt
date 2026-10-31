@@ -117,4 +117,30 @@ class ExampleRobolectricTest {
         )
         assertTrue(prescriptionResponse.contains("ATENCIÓN") || prescriptionResponse.contains("médico") || prescriptionResponse.contains("recetar"))
     }
+
+    // CASO DE USO 7: Formateo y Estructura de Reporte Clínico para el Médico
+    @Test
+    fun testCase7_generateReportDataForDoctor() {
+        val testPaciente = com.example.util.DatosPacienteInforme(
+            nombreCompleto = "Sebastian Sosa",
+            edad = 73,
+            tipoSangre = "O+",
+            medicoTratante = "Dra. Sara Martinez",
+            especialidadMedico = "Cardióloga",
+            contactoEmergencia = "Isabela Sosa (Hija)",
+            telefonoEmergencia = "+57 310 456 7890"
+        )
+        val testEstado = com.example.data.model.HistorialCumplimientoUiState(
+            porcentajeGeneralSemana = 88,
+            dosisTomadasTotal = 25,
+            dosisPlanificadasTotal = 28,
+            rachaDiasConsecutivos = 5
+        )
+        assertEquals("Sebastian Sosa", testPaciente.nombreCompleto)
+        assertEquals("Dra. Sara Martinez", testPaciente.medicoTratante)
+        assertEquals(88, testEstado.porcentajeGeneralSemana)
+        assertEquals(5, testEstado.rachaDiasConsecutivos)
+    }
 }
+
+

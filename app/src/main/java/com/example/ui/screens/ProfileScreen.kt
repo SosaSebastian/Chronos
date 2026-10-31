@@ -77,6 +77,17 @@ fun ProfileScreen(
 
                 NavigationBarItem(
                     selected = false,
+                    onClick = { onNavigate(AppScreen.HISTORIAL_CUMPLIMIENTO) },
+                    icon = { Icon(Icons.Default.BarChart, contentDescription = "Cumplimiento") },
+                    label = { Text("Cumplimiento", fontSize = 13.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        unselectedIconColor = TextLightBlue,
+                        unselectedTextColor = TextLightBlue
+                    )
+                )
+
+                NavigationBarItem(
+                    selected = false,
                     onClick = { onNavigate(AppScreen.AI_ASSISTANT) },
                     icon = { Icon(Icons.Default.SmartToy, contentDescription = "Asistente IA") },
                     label = { Text("Asistente IA", fontSize = 13.sp) },

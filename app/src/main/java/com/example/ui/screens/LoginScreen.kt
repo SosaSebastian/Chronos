@@ -39,6 +39,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onFirebaseSignIn: (email: String, pass: String) -> Unit = { _, _ -> },
     onFirebaseSignUp: (email: String, pass: String, fullName: String) -> Unit = { _, _, _ -> },
+    onNavigateToRegistroPaciente: () -> Unit = {},
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onClearError: () -> Unit = {},
@@ -519,6 +520,30 @@ fun LoginScreen(
                                     Spacer(Modifier.width(8.dp))
                                     Text("Registrarme en Firebase", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedButton(
+                                onClick = onNavigateToRegistroPaciente,
+                                enabled = !isLoading,
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MintInteractive
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, MintInteractive),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .testTag("btn_ir_registro_ficha_completa")
+                            ) {
+                                Icon(Icons.Default.AssignmentInd, contentDescription = null, tint = MintInteractive)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Registro con Ficha Médica Completa",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
 
