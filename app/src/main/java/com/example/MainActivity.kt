@@ -25,11 +25,13 @@ import com.example.ui.theme.HealtyChronosTheme
 import com.example.ui.theme.NavyDark
 import com.example.ui.viewmodel.AppScreen
 import com.example.ui.viewmodel.MedicationViewModel
+import com.example.util.configureAppCheck
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        configureAppCheck(this, intent)
         PushReminderManager.createNotificationChannel(this)
 
         setContent {
@@ -40,10 +42,11 @@ class MainActivity : ComponentActivity() {
             val authError by medicationViewModel.authError.collectAsStateWithLifecycle()
             val medications by medicationViewModel.medications.collectAsStateWithLifecycle()
             val userProfile by medicationViewModel.userProfile.collectAsStateWithLifecycle()
+            val notificationMessage by medicationViewModel.notificationSuccessMessage.collectAsStateWithLifecycle()
+
+            // Estados del Asistente Virtual IA (Modo Texto)
             val aiMessages by medicationViewModel.aiMessages.collectAsStateWithLifecycle()
             val isAiLoading by medicationViewModel.isAiLoading.collectAsStateWithLifecycle()
-            val isSpeaking by medicationViewModel.isSpeaking.collectAsStateWithLifecycle()
-            val notificationMessage by medicationViewModel.notificationSuccessMessage.collectAsStateWithLifecycle()
 
             // Runtime permission launcher for notifications on Android 13+
             val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -107,15 +110,7 @@ class MainActivity : ComponentActivity() {
                             AppScreen.REGISTRO_PACIENTE -> {
                                 RegistroPacienteScreen(
                                     onRegistroExitoso = { paciente ->
-                                        userProfile?.let { current ->
-                                            medicationViewModel.saveProfile(
-                                                current.copy(
-                                                    fullName = paciente.nombre,
-                                                    emergencyContactName = paciente.contactoEmergencia.nombre,
-                                                    emergencyContactPhone = paciente.contactoEmergencia.telefono
-                                                )
-                                            )
-                                        }
+                                        medicationViewModel.onNewUserRegistered(paciente)
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
                                     onVolver = {
@@ -131,14 +126,36 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToRegistrar = {
                                         medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     },
-                                    onNavigateToAsistenteIa = {
-                                        medicationViewModel.navigateTo(AppScreen.AI_ASSISTANT)
+                                    onNavigateToCalendario = {
+                                        medicationViewModel.navigateTo(AppScreen.CALENDARIO)
                                     },
                                     onNavigateToPerfil = {
                                         medicationViewModel.navigateTo(AppScreen.PROFILE)
                                     },
                                     onNavigateToHistorial = {
                                         medicationViewModel.navigateTo(AppScreen.HISTORIAL_CUMPLIMIENTO)
+                                    },
+                                    onNavigateToAsistente = {
+                                        medicationViewModel.navigateTo(AppScreen.AI_ASSISTANT)
+                                    }
+                                )
+                            }
+
+                            AppScreen.CALENDARIO -> {
+                                CalendarioMedicacionesScreen(
+                                    patientName = userProfile?.fullName ?: "Sr. Sebastian",
+                                    emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
+                                    onNavigateToDashboard = {
+                                        medicationViewModel.navigateTo(AppScreen.DASHBOARD)
+                                    },
+                                    onNavigateToHistorial = {
+                                        medicationViewModel.navigateTo(AppScreen.HISTORIAL_CUMPLIMIENTO)
+                                    },
+                                    onNavigateToPerfil = {
+                                        medicationViewModel.navigateTo(AppScreen.PROFILE)
+                                    },
+                                    onNavigateToRegistrar = {
+                                        medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     }
                                 )
                             }
@@ -154,8 +171,8 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToDashboard = {
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
-                                    onNavigateToAsistenteIa = {
-                                        medicationViewModel.navigateTo(AppScreen.AI_ASSISTANT)
+                                    onNavigateToCalendario = {
+                                        medicationViewModel.navigateTo(AppScreen.CALENDARIO)
                                     },
                                     onNavigateToPerfil = {
                                         medicationViewModel.navigateTo(AppScreen.PROFILE)
@@ -185,26 +202,6 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            AppScreen.AI_ASSISTANT -> {
-                                AIAssistantScreen(
-                                    messages = aiMessages,
-                                    isLoading = isAiLoading,
-                                    isSpeaking = isSpeaking,
-                                    onSendMessage = { prompt ->
-                                        medicationViewModel.askAI(prompt)
-                                    },
-                                    onSpeak = { text ->
-                                        medicationViewModel.speak(text)
-                                    },
-                                    onStopSpeaking = {
-                                        medicationViewModel.stopSpeaking()
-                                    },
-                                    onBack = {
-                                        medicationViewModel.navigateTo(AppScreen.DASHBOARD)
-                                    }
-                                )
-                            }
-
                             AppScreen.PROFILE -> {
                                 ProfileScreen(
                                     profile = userProfile,
@@ -220,6 +217,21 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onLogout = {
                                         medicationViewModel.signOutFirebase()
+                                    }
+                                )
+                            }
+
+                            AppScreen.AI_ASSISTANT -> {
+                                AsistenteVirtualScreen(
+                                    patientName = userProfile?.fullName ?: "Sr. Sebastian",
+                                    emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
+                                    messages = aiMessages,
+                                    isLoading = isAiLoading,
+                                    onSendMessage = { query ->
+                                        medicationViewModel.askAssistant(query)
+                                    },
+                                    onBack = {
+                                        medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     }
                                 )
                             }

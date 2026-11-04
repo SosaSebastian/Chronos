@@ -1,54 +1,53 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val SeniorDarkColorScheme = darkColorScheme(
-    primary = MintInteractive,
-    onPrimary = NavyDark,
-    primaryContainer = NavySurfaceVariant,
-    onPrimaryContainer = MintInteractive,
-    secondary = MintLight,
-    onSecondary = NavyDark,
-    background = NavyDark,
+private val HealthyChronosDarkColorScheme = darkColorScheme(
+    primary = BrandGreen,
+    onPrimary = TextWhite,
+    primaryContainer = BrandSurfaceVariant,
+    onPrimaryContainer = BrandGreenAccent,
+    secondary = BrandGreenLight,
+    onSecondary = BrandDark,
+    background = BrandDark,
     onBackground = TextWhite,
-    surface = NavySurface,
+    surface = BrandSurface,
     onSurface = TextWhite,
-    surfaceVariant = NavySurfaceVariant,
-    onSurfaceVariant = TextLightBlue,
-    outline = MintInteractive,
+    surfaceVariant = BrandSurfaceVariant,
+    onSurfaceVariant = TextLightGreen,
+    outline = BrandGreenBorder,
     error = StatusUrgent,
     onError = TextWhite
 )
 
-private val SeniorLightColorScheme = lightColorScheme(
-    primary = MintDark,
+private val HealthyChronosLightColorScheme = lightColorScheme(
+    primary = BrandGreen,
     onPrimary = TextWhite,
-    primaryContainer = Color(0xFFE8FBF8),
-    onPrimaryContainer = NavyDark,
-    secondary = Color(0xFF0F4C81),
+    primaryContainer = BrandGreenLight,
+    onPrimaryContainer = BrandBlack,
+    secondary = BrandGreenDark,
     onSecondary = TextWhite,
-    background = Color(0xFFF4F7FC),
-    onBackground = NavyDark,
+    background = Color(0xFFF7FAF7),
+    onBackground = BrandBlack,
     surface = TextWhite,
-    onSurface = NavyDark,
-    surfaceVariant = Color(0xFFE2E8F0),
-    onSurfaceVariant = Color(0xFF334155),
-    outline = MintDark,
+    onSurface = BrandBlack,
+    surfaceVariant = Color(0xFFE5EFE6),
+    onSurfaceVariant = Color(0xFF2A3B2D),
+    outline = BrandGreen,
     error = StatusUrgent,
     onError = TextWhite
 )
 
 @Composable
 fun HealtyChronosTheme(
-    darkTheme: Boolean = true, // Default to Dark Navy Blue aesthetic requested
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) SeniorDarkColorScheme else SeniorLightColorScheme
+    val colorScheme = if (darkTheme) HealthyChronosDarkColorScheme else HealthyChronosLightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

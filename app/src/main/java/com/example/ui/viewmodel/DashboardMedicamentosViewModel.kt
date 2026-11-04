@@ -195,26 +195,22 @@ class DashboardMedicamentosViewModel(
 
     /**
      * Carga inicial y observación continua de la base de datos local Room.
+     * Solo actúa como fuente primaria si no hay usuario autenticado en Firebase.
      */
     private fun observarMedicamentosLocales() {
         viewModelScope.launch {
             medicationDao.getAllMedications().collect { localEntities ->
-                // Si Firestore está vacío o sin conexión, se usan las entidades locales
                 val currentUid = auth.currentUser?.uid
-                if (currentUid.isNullOrBlank() || _rawMedicamentos.value.isEmpty()) {
-                    val converted = localEntities.map { entity ->
-                        entityToUiModel(entity)
-                    }
-                    if (converted.isNotEmpty() || _rawMedicamentos.value.isEmpty()) {
-                        _rawMedicamentos.value = converted
-                    }
+                if (currentUid.isNullOrBlank()) {
+                    _rawMedicamentos.value = localEntities.map { entityToUiModel(it) }
                 }
             }
         }
     }
 
     /**
-     * Observa en tiempo real los medicamentos en Cloud Firestore users/{userId}/medicamentos
+     * Observa en tiempo real los medicamentos en Cloud Firestore users/{userId}/medicamentos.
+     * Garantiza que usuarios nuevos comiencen con una lista vacía y personalizada.
      */
     private fun observarMedicamentosFirestore() {
         viewModelScope.launch {
@@ -230,9 +226,25 @@ class DashboardMedicamentosViewModel(
                         is Resource.Success -> {
                             _isLoading.value = false
                             val firestoreList = resource.data
-                            if (firestoreList.isNotEmpty()) {
-                                _rawMedicamentos.value = firestoreList.map { med ->
-                                    firestoreToUiModel(med)
+                            // Si el usuario es nuevo, firestoreList estará vacía y la UI mostrará correctamente 0 medicamentos
+                            _rawMedicamentos.value = firestoreList.map { med -> firestoreToUiModel(med) }
+
+                            // Sincronizar hacia Room solo los medicamentos del usuario actual
+                            launch {
+                                medicationDao.clearAllMedications()
+                                firestoreList.forEach { med ->
+                                    medicationDao.insertMedication(
+                                        MedicationEntity(
+                                            name = med.nombre,
+                                            dosage = med.dosis,
+                                            scheduleTime = med.horaToma,
+                                            frequencyHours = 24,
+                                            instructions = med.indicaciones,
+                                            category = med.categoria,
+                                            isTakenToday = false,
+                                            requiresFood = true
+                                        )
+                                    )
                                 }
                             }
                         }
@@ -253,9 +265,7 @@ class DashboardMedicamentosViewModel(
             if (!uid.isNullOrBlank()) {
                 when (val result = firebaseRepo.getActiveMedicamentos(uid)) {
                     is Resource.Success -> {
-                        if (result.data.isNotEmpty()) {
-                            _rawMedicamentos.value = result.data.map { firestoreToUiModel(it) }
-                        }
+                        _rawMedicamentos.value = result.data.map { firestoreToUiModel(it) }
                     }
                     is Resource.Error -> {
                         Log.w(TAG, "Error cargando de Firestore: ${result.message}")

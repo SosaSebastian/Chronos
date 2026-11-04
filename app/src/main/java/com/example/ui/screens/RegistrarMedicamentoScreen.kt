@@ -27,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.RegistrarMedicamentoUiState
 import com.example.ui.viewmodel.RegistrarMedicamentoViewModel
+import com.example.util.VoiceDictationButton
 
 /**
  * Pantalla 2: Formulario de Registro de Dosis y Horario (`RegistrarMedicamentoScreen.kt`)
@@ -155,14 +156,30 @@ fun RegistrarMedicamentoScreen(
             }
 
             // =========================================================================
-            // 1. CAMPO NOMBRE DEL MEDICAMENTO + CHIPS FRECUENTES
+            // 1. CAMPO NOMBRE DEL MEDICAMENTO + CHIPS FRECUENTES + BOTÓN DE VOZ
             // =========================================================================
-            Text(
-                text = "Nombre del Medicamento *",
-                color = MintInteractive,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Nombre del Medicamento *",
+                    color = MintInteractive,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                VoiceDictationButton(
+                    label = "Dictar",
+                    promptText = "Di el nombre de tu medicamento...",
+                    testTag = "btn_dictar_nombre_med",
+                    containerColor = NavySurfaceVariant,
+                    contentColor = MintInteractive,
+                    onSpeechResult = { recognizedText ->
+                        viewModel.updateNombre(recognizedText)
+                    }
+                )
+            }
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = formState.nombre,
@@ -432,14 +449,32 @@ fun RegistrarMedicamentoScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // =========================================================================
-            // 5. INDICACIONES ESPECIALES (CAMPO MULTILÍNEA)
+            // 5. INDICACIONES ESPECIALES (CAMPO MULTILÍNEA + GRABACIÓN DE VOZ ANDROID)
             // =========================================================================
-            Text(
-                text = "Indicaciones Especiales",
-                color = MintInteractive,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Indicaciones Especiales",
+                    color = MintInteractive,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                VoiceDictationButton(
+                    label = "Dictar por voz",
+                    promptText = "Di las indicaciones médicas para tu medicamento...",
+                    testTag = "btn_dictar_indicaciones",
+                    containerColor = MintInteractive,
+                    contentColor = NavyDark,
+                    onSpeechResult = { recognizedText ->
+                        val current = formState.indicaciones.trim()
+                        val updated = if (current.isBlank()) recognizedText else "$current. $recognizedText"
+                        viewModel.updateIndicaciones(updated)
+                    }
+                )
+            }
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = formState.indicaciones,

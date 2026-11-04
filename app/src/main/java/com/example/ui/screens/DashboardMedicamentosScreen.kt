@@ -54,9 +54,10 @@ fun DashboardMedicamentosScreen(
     patientName: String = "Sr. Sebastian",
     emergencyPhone: String = "+57 310 456 7890",
     onNavigateToRegistrar: () -> Unit = {},
-    onNavigateToAsistenteIa: () -> Unit = {},
+    onNavigateToCalendario: () -> Unit = {},
     onNavigateToPerfil: () -> Unit = {},
-    onNavigateToHistorial: () -> Unit = {}
+    onNavigateToHistorial: () -> Unit = {},
+    onNavigateToAsistente: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -142,33 +143,43 @@ fun DashboardMedicamentosScreen(
                     titleContentColor = TextWhite
                 ),
                 title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Healty Chronos",
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextWhite
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(androidx.compose.ui.graphics.Color.White)
+                                .padding(2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_brand_icon),
+                                contentDescription = "Logo Healthy Chronos",
+                                modifier = Modifier.size(34.dp)
                             )
-                            Spacer(Modifier.width(8.dp))
-                            Surface(
-                                color = MintInteractive.copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Dosis & Horarios",
-                                    color = MintInteractive,
-                                    fontSize = 11.sp,
+                                    text = "Healthy ",
+                                    fontSize = 19.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    color = TextWhite
+                                )
+                                Text(
+                                    text = "Chronos",
+                                    fontSize = 19.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BrandGreen
                                 )
                             }
+                            Text(
+                                text = "Hola, $patientName",
+                                fontSize = 13.sp,
+                                color = TextLightGreen
+                            )
                         }
-                        Text(
-                            text = "Hola, $patientName",
-                            fontSize = 14.sp,
-                            color = TextLightBlue
-                        )
                     }
                 },
                 actions = {
@@ -190,6 +201,20 @@ fun DashboardMedicamentosScreen(
                             contentDescription = "Llamar contacto de emergencia",
                             tint = TextWhite,
                             modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Botón de Asistente Virtual IA para adultos mayores
+                    IconButton(
+                        onClick = onNavigateToAsistente,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("dashboard_asistente_topbar_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = "Abrir Asistente Virtual de Medicación",
+                            tint = MintInteractive
                         )
                     }
 
@@ -280,6 +305,24 @@ fun DashboardMedicamentosScreen(
 
                 NavigationBarItem(
                     selected = false,
+                    onClick = onNavigateToCalendario,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = "Calendario"
+                        )
+                    },
+                    label = {
+                        Text(text = "Calendario", fontSize = 12.sp)
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        unselectedIconColor = TextLightBlue,
+                        unselectedTextColor = TextLightBlue
+                    )
+                )
+
+                NavigationBarItem(
+                    selected = false,
                     onClick = onNavigateToHistorial,
                     icon = {
                         Icon(
@@ -298,15 +341,15 @@ fun DashboardMedicamentosScreen(
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = onNavigateToAsistenteIa,
+                    onClick = onNavigateToAsistente,
                     icon = {
                         Icon(
                             imageVector = Icons.Default.SmartToy,
-                            contentDescription = "Asistente IA"
+                            contentDescription = "Asistente Virtual"
                         )
                     },
                     label = {
-                        Text(text = "Asistente IA", fontSize = 13.sp)
+                        Text(text = "Asistente", fontSize = 12.sp)
                     },
                     colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = TextLightBlue,
@@ -390,6 +433,61 @@ fun DashboardMedicamentosScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Banner Interactivo para el Asistente Virtual IA
+            Card(
+                onClick = onNavigateToAsistente,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .testTag("ai_assistant_card_banner"),
+                colors = CardDefaults.cardColors(containerColor = NavySurfaceElevated),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, MintInteractive.copy(alpha = 0.8f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(MintInteractive),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = null,
+                            tint = NavyDark,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Asistente de Medicación",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextWhite
+                        )
+                        Text(
+                            text = "¿Dudas con tus pastillas u horarios? Consulta aquí a tu asistente en texto",
+                            fontSize = 13.sp,
+                            color = TextLightBlue,
+                            lineHeight = 17.sp
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Abrir Asistente",
+                        tint = MintInteractive,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
 
@@ -596,6 +694,14 @@ fun TarjetaProgresoDiario(
                 Text(
                     text = "Tienes $pendientes ${if (pendientes == 1) "toma pendiente" else "tomas pendientes"} para el día de hoy.",
                     color = StatusPending,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            } else if (totalMedicamentos == 0) {
+                Text(
+                    text = "No tienes medicamentos registrados. Pulsa en 'Registrar Medicamento' para personalizar tu tratamiento.",
+                    color = TextLightBlue,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(top = 8.dp)
@@ -1020,7 +1126,7 @@ fun EstadoVacioMedicamentos(
                 text = if (searchQuery.isNotBlank() || categoriaSeleccionada != "Todas") {
                     "No encontramos medicamentos con estos filtros"
                 } else {
-                    "Aún no tienes medicamentos programados"
+                    "Aún no tienes medicamentos en tu cuenta"
                 },
                 fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
@@ -1034,7 +1140,7 @@ fun EstadoVacioMedicamentos(
                 text = if (searchQuery.isNotBlank() || categoriaSeleccionada != "Todas") {
                     "Intenta buscar con otro nombre o selecciona la categoría 'Todas'."
                 } else {
-                    "Registra tus dosis y horarios para que Healty Chronos te avise puntualmente."
+                    "Tu lista inicia vacía para que registres únicamente tus propios medicamentos, dosis y horarios personalizados."
                 },
                 fontSize = 15.sp,
                 color = TextLightBlue,

@@ -106,26 +106,26 @@ fun DashboardScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { onNavigate(AppScreen.AI_ASSISTANT) },
+                onClick = { onNavigate(AppScreen.ADD_MEDICATION) },
                 containerColor = MintInteractive,
                 contentColor = NavyDark,
                 icon = {
                     Icon(
-                        Icons.Default.SmartToy,
-                        contentDescription = null,
+                        Icons.Default.Add,
+                        contentDescription = "Agregar Medicamento",
                         modifier = Modifier.size(28.dp)
                     )
                 },
                 text = {
                     Text(
-                        text = "Consultar con IA",
+                        text = "Agregar Medicamento",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 modifier = Modifier
                     .minimumInteractiveComponentSize()
-                    .testTag("ai_assistant_fab")
+                    .testTag("add_medication_fab")
             )
         },
         bottomBar = {
@@ -150,9 +150,20 @@ fun DashboardScreen(
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = { onNavigate(AppScreen.AI_ASSISTANT) },
-                    icon = { Icon(Icons.Default.SmartToy, contentDescription = "Asistente IA") },
-                    label = { Text("Asistente IA", fontSize = 13.sp) },
+                    onClick = { onNavigate(AppScreen.CALENDARIO) },
+                    icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendario") },
+                    label = { Text("Calendario", fontSize = 12.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        unselectedIconColor = TextLightBlue,
+                        unselectedTextColor = TextLightBlue
+                    )
+                )
+
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate(AppScreen.HISTORIAL_CUMPLIMIENTO) },
+                    icon = { Icon(Icons.Default.Timeline, contentDescription = "Historial") },
+                    label = { Text("Historial", fontSize = 13.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = TextLightBlue,
                         unselectedTextColor = TextLightBlue

@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.util.VoiceDictationButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +88,24 @@ fun AddMedicationScreen(
             )
 
             // Medication Name
-            Text("Nombre del Medicamento *", color = MintInteractive, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Nombre del Medicamento *", color = MintInteractive, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                VoiceDictationButton(
+                    label = "Dictar",
+                    promptText = "Di el nombre de tu medicamento...",
+                    testTag = "btn_dictar_nombre_add",
+                    containerColor = NavySurfaceVariant,
+                    contentColor = MintInteractive,
+                    onSpeechResult = { recognizedText ->
+                        name = recognizedText
+                        errorMessage = null
+                    }
+                )
+            }
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it; errorMessage = null },
@@ -222,7 +240,24 @@ fun AddMedicationScreen(
             Spacer(Modifier.height(10.dp))
 
             // Instructions
-            Text("Indicaciones Especiales", color = MintInteractive, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Indicaciones Especiales", color = MintInteractive, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                VoiceDictationButton(
+                    label = "Dictar por voz",
+                    promptText = "Di las indicaciones médicas para tu medicamento...",
+                    testTag = "btn_dictar_indicaciones_add",
+                    containerColor = MintInteractive,
+                    contentColor = NavyDark,
+                    onSpeechResult = { recognizedText ->
+                        val current = instructions.trim()
+                        instructions = if (current.isBlank()) recognizedText else "$current. $recognizedText"
+                    }
+                )
+            }
             OutlinedTextField(
                 value = instructions,
                 onValueChange = { instructions = it },

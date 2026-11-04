@@ -1,5 +1,5 @@
 {
-  "name": "Healty Chronos",
+  "name": "Healthy Chronos",
   "description": "Gestión inteligente y accesible de medicamentos para adultos mayores con asistente de IA y recordatorios",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -13,6 +13,10 @@ class MedicationRepository(
     val medications: Flow<List<MedicationEntity>> = medicationDao.getAllMedications()
     val userProfile: Flow<UserProfileEntity?> = userDao.getUserProfile()
 
+    suspend fun getAllMedicationsList(): List<MedicationEntity> {
+        return medicationDao.getAllMedicationsList()
+    }
+
     suspend fun addMedication(medication: MedicationEntity): Long {
         return medicationDao.insertMedication(medication)
     }
@@ -32,6 +36,10 @@ class MedicationRepository(
 
     suspend fun saveProfile(profile: UserProfileEntity) {
         userDao.saveUserProfile(profile)
+    }
+
+    suspend fun clearAllMedications() {
+        medicationDao.clearAllMedications()
     }
 
     suspend fun resetAllDailyTakens() {

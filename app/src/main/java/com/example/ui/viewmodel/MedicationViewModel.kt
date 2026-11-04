@@ -3,9 +3,6 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.ai.AIAssistantManager
-import com.example.ai.ChatMessage
-import com.example.ai.MessageSender
 import com.example.data.local.AppDatabase
 import com.example.data.local.MedicationEntity
 import com.example.data.local.UserProfileEntity
@@ -16,6 +13,7 @@ import com.example.data.model.Paciente
 import com.example.data.model.Resource
 import com.example.data.repository.FirebaseMedicationRepository
 import com.example.data.repository.MedicationRepository
+import com.example.notifications.MedicationAlarmScheduler
 import com.example.notifications.PushReminderManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,20 +26,37 @@ enum class AppScreen {
     LOGIN,
     REGISTRO_PACIENTE,
     DASHBOARD,
+    CALENDARIO,
     ADD_MEDICATION,
-    AI_ASSISTANT,
     HISTORIAL_CUMPLIMIENTO,
-    PROFILE
+    PROFILE,
+    AI_ASSISTANT
 }
 
 class MedicationViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: MedicationRepository
     val firebaseRepo = FirebaseMedicationRepository()
-    private val aiManager = AIAssistantManager(application)
     val authManager = com.example.auth.FirebaseAuthManager()
 
+    // Asistente Virtual Inteligente (Modo Texto)
+    val asistenteManager = com.example.ai.AsistenteMedicacionManager(application)
+
     val currentScreen = MutableStateFlow(AppScreen.LOGIN)
+
+    private val _aiMessages = MutableStateFlow<List<com.example.ai.MensajeChat>>(
+        listOf(
+            com.example.ai.MensajeChat(
+                id = "welcome_msg",
+                texto = "¡Hola! Soy tu asistente de medicación. Con mucho gusto puedo responder tus dudas sobre horarios, dosis y para qué sirve cada una de tus pastillas de hoy en texto claro y sencillo.",
+                esDelUsuario = false
+            )
+        )
+    )
+    val aiMessages: StateFlow<List<com.example.ai.MensajeChat>> = _aiMessages.asStateFlow()
+
+    private val _isAiLoading = MutableStateFlow(false)
+    val isAiLoading: StateFlow<Boolean> = _isAiLoading.asStateFlow()
 
     val currentFirebaseUser: StateFlow<com.google.firebase.auth.FirebaseUser?> = authManager.authState.stateIn(
         scope = viewModelScope,
@@ -57,15 +72,6 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
     val medications: StateFlow<List<MedicationEntity>>
     val userProfile: StateFlow<UserProfileEntity?>
-
-    private val _aiMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
-    val aiMessages: StateFlow<List<ChatMessage>> = _aiMessages.asStateFlow()
-
-    private val _isAiLoading = MutableStateFlow(false)
-    val isAiLoading: StateFlow<Boolean> = _isAiLoading.asStateFlow()
-
-    private val _isSpeaking = MutableStateFlow(false)
-    val isSpeaking: StateFlow<Boolean> = _isSpeaking.asStateFlow()
 
     private val _notificationSuccessMessage = MutableStateFlow<String?>(null)
     val notificationSuccessMessage: StateFlow<String?> = _notificationSuccessMessage.asStateFlow()
@@ -86,26 +92,12 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
             initialValue = null
         )
 
-        // Initial welcome message from AI Agent for older adults
-        _aiMessages.value = listOf(
-            ChatMessage(
-                sender = MessageSender.ASSISTANT,
-                text = "¡Hola! Soy tu Asistente Chronos. Estoy aquí para acompañarte y resolver cualquier duda sobre cómo tomar tus medicinas, con qué alimentos tomarlas o qué hacer si olvidaste una dosis. ¿En qué puedo ayudarte hoy?"
-            )
-        )
+        // Sincronizar y programar todas las alarmas en el sistema AlarmManager
+        MedicationAlarmScheduler.rescheduleAllAlarms(application)
     }
 
     fun navigateTo(screen: AppScreen) {
         currentScreen.value = screen
-    }
-
-    fun login(pin: String): Boolean {
-        // Simple, accessible login: any 4-digit PIN or "1234"
-        if (pin.length >= 4) {
-            currentScreen.value = AppScreen.DASHBOARD
-            return true
-        }
-        return false
     }
 
     fun clearAuthError() {
@@ -116,48 +108,99 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             _authLoading.value = true
             _authError.value = null
-            val result = authManager.signIn(email, pass)
-            _authLoading.value = false
-            result.onSuccess { user ->
-                val fallbackName = user.displayName?.takeIf { it.isNotBlank() }
-                    ?: user.email?.substringBefore("@")
-                    ?: "Sr. Sebastian"
-                userProfile.value?.let { current ->
-                    saveProfile(current.copy(fullName = fallbackName))
+            authManager.signIn(email, pass).onSuccess { user ->
+                _authLoading.value = false
+                // Limpiar datos locales previos para asegurar total aislamiento de medicamentos
+                repository.clearAllMedications()
+                MedicationAlarmScheduler.cancelAllAlarms(getApplication())
+
+                // Sincronizar perfil y medicamentos específicos del usuario desde Firestore
+                launch {
+                    when (val profileRes = firebaseRepo.getPacienteProfile(user.uid)) {
+                        is Resource.Success -> {
+                            val p = profileRes.data
+                            repository.saveProfile(
+                                UserProfileEntity(
+                                    fullName = p.nombre,
+                                    age = p.edad,
+                                    doctorName = "${p.medico.nombre} (${p.medico.especialidad})".trim(),
+                                    emergencyContactName = "${p.contactoEmergencia.nombre} (${p.contactoEmergencia.parentesco})".trim(),
+                                    emergencyContactPhone = p.contactoEmergencia.telefono,
+                                    bloodType = p.tipoSangre
+                                )
+                            )
+                        }
+                        else -> {}
+                    }
+
+                    // Cargar únicamente los medicamentos registrados por este usuario
+                    when (val medsRes = firebaseRepo.getActiveMedicamentos(user.uid)) {
+                        is Resource.Success -> {
+                            for (m in medsRes.data) {
+                                val entity = MedicationEntity(
+                                    name = m.nombre,
+                                    dosage = m.dosis,
+                                    scheduleTime = m.horaToma,
+                                    frequencyHours = 24,
+                                    instructions = m.indicaciones,
+                                    category = m.categoria,
+                                    isTakenToday = false,
+                                    requiresFood = true
+                                )
+                                val id = repository.addMedication(entity)
+                                MedicationAlarmScheduler.scheduleMedicationAlarm(
+                                    getApplication(),
+                                    entity.copy(id = id)
+                                )
+                            }
+                        }
+                        else -> {}
+                    }
                 }
+
                 currentScreen.value = AppScreen.DASHBOARD
                 onSuccess()
             }.onFailure { ex ->
+                _authLoading.value = false
                 _authError.value = ex.message ?: "Error al iniciar sesión con Firebase."
             }
         }
     }
 
-    fun signUpWithFirebase(email: String, pass: String, fullName: String, onSuccess: () -> Unit) {
+    fun signUpWithFirebase(email: String, pass: String, name: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _authLoading.value = true
             _authError.value = null
-            val result = authManager.signUp(email, pass, fullName)
-            _authLoading.value = false
-            result.onSuccess { user ->
-                val cleanName = fullName.trim().ifEmpty {
-                    user.email?.substringBefore("@") ?: "Sr. Sebastian"
-                }
-                userProfile.value?.let { current ->
-                    saveProfile(current.copy(fullName = cleanName))
-                }
-                // Sincronizar perfil inicial en Firestore users/{userId}
+            authManager.signUp(email, pass, name).onSuccess { user ->
+                _authLoading.value = false
+                val cleanName = name.ifBlank { "Paciente" }
+
+                // Garantizar que la cuenta nueva inicie SIN medicamentos precargados
+                repository.clearAllMedications()
+                MedicationAlarmScheduler.cancelAllAlarms(getApplication())
+
+                repository.saveProfile(
+                    UserProfileEntity(
+                        fullName = cleanName,
+                        age = 0,
+                        doctorName = "",
+                        emergencyContactName = "",
+                        emergencyContactPhone = "",
+                        bloodType = ""
+                    )
+                )
+
                 val paciente = Paciente(
                     uid = user.uid,
                     email = user.email ?: email,
                     nombre = cleanName,
-                    edad = 73,
-                    tipoSangre = "O+",
-                    medico = Medico(nombre = "Dra. Sara Martinez", especialidad = "Cardióloga"),
+                    edad = 0,
+                    tipoSangre = "",
+                    medico = Medico(nombre = "", especialidad = ""),
                     contactoEmergencia = ContactoEmergencia(
-                        nombre = "Isabela Sosa",
-                        parentesco = "Hija",
-                        telefono = "+57 310 456 7890"
+                        nombre = "",
+                        parentesco = "",
+                        telefono = ""
                     )
                 )
                 launch {
@@ -166,13 +209,35 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 currentScreen.value = AppScreen.DASHBOARD
                 onSuccess()
             }.onFailure { ex ->
+                _authLoading.value = false
                 _authError.value = ex.message ?: "Error al crear cuenta en Firebase."
             }
         }
     }
 
+    fun onNewUserRegistered(paciente: Paciente) {
+        viewModelScope.launch {
+            repository.clearAllMedications()
+            MedicationAlarmScheduler.cancelAllAlarms(getApplication())
+            repository.saveProfile(
+                UserProfileEntity(
+                    fullName = paciente.nombre,
+                    age = paciente.edad,
+                    doctorName = "${paciente.medico.nombre} (${paciente.medico.especialidad})".trim(),
+                    emergencyContactName = "${paciente.contactoEmergencia.nombre} (${paciente.contactoEmergencia.parentesco})".trim(),
+                    emergencyContactPhone = paciente.contactoEmergencia.telefono,
+                    bloodType = paciente.tipoSangre
+                )
+            )
+        }
+    }
+
     fun signOutFirebase() {
         authManager.signOut()
+        viewModelScope.launch {
+            repository.clearAllMedications()
+            MedicationAlarmScheduler.cancelAllAlarms(getApplication())
+        }
         currentScreen.value = AppScreen.LOGIN
     }
 
@@ -202,7 +267,12 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 isTakenToday = false,
                 requiresFood = requiresFood
             )
-            repository.addMedication(entity)
+            val insertedId = repository.addMedication(entity)
+            // Programar alarma exacta en el sistema AlarmManager
+            MedicationAlarmScheduler.scheduleMedicationAlarm(
+                context = getApplication(),
+                medication = entity.copy(id = insertedId)
+            )
 
             // Persistencia en subcolección Cloud Firestore users/{userId}/medicamentos
             authManager.currentUser?.uid?.let { uid ->
@@ -225,48 +295,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
     fun deleteMedication(id: Long) {
         viewModelScope.launch {
+            MedicationAlarmScheduler.cancelMedicationAlarm(getApplication(), id)
             repository.deleteMedication(id)
         }
-    }
-
-    fun askAI(prompt: String) {
-        val cleanPrompt = prompt.trim()
-        if (cleanPrompt.isBlank()) return
-
-        val userMessage = ChatMessage(
-            sender = MessageSender.USER,
-            text = cleanPrompt
-        )
-        _aiMessages.value = _aiMessages.value + userMessage
-        _isAiLoading.value = true
-
-        viewModelScope.launch {
-            val patientName = userProfile.value?.fullName ?: "Sr. Sebastian"
-            val response = aiManager.askAssistant(cleanPrompt, medications.value, patientName)
-
-            val assistantMessage = ChatMessage(
-                sender = MessageSender.ASSISTANT,
-                text = response
-            )
-            _aiMessages.value = _aiMessages.value + assistantMessage
-            _isAiLoading.value = false
-
-            // If voice is enabled, read aloud for the senior
-            if (userProfile.value?.voiceEnabled != false) {
-                aiManager.speak(response)
-                _isSpeaking.value = true
-            }
-        }
-    }
-
-    fun speak(text: String) {
-        aiManager.speak(text)
-        _isSpeaking.value = true
-    }
-
-    fun stopSpeaking() {
-        aiManager.stopSpeaking()
-        _isSpeaking.value = false
     }
 
     fun saveProfile(profile: UserProfileEntity) {
@@ -283,17 +314,24 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         val dosage = nextPending?.dosage ?: "50 mg"
         val time = nextPending?.scheduleTime ?: "08:00 AM"
 
-        val sent = PushReminderManager.sendPushReminder(
+        // Disparar prueba de alarma real con AlarmManager programada a 3 segundos
+        val alarmScheduled = MedicationAlarmScheduler.scheduleTestAlarm(
             context = getApplication(),
             medicationName = medName,
             dosage = dosage,
-            scheduleTime = time
+            delaySeconds = 3
         )
 
-        _notificationSuccessMessage.value = if (sent) {
-            "¡Recordatorio Push externo enviado para $medName! Revisa la barra de notificaciones."
+        _notificationSuccessMessage.value = if (alarmScheduled) {
+            "⏰ Alarma programada con Android AlarmManager. En 3 segundos recibirás la notificación con acciones de 'Tomar Dosis' y 'Posponer'."
         } else {
-            "Recordatorio emitido (comprueba los permisos de notificación del dispositivo)."
+            PushReminderManager.sendPushReminder(
+                context = getApplication(),
+                medicationName = medName,
+                dosage = dosage,
+                scheduleTime = time
+            )
+            "Recordatorio emitido directamente para $medName."
         }
     }
 
@@ -301,8 +339,35 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         _notificationSuccessMessage.value = null
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        aiManager.release()
+    fun askAssistant(query: String) {
+        if (query.isBlank()) return
+        val userMsg = com.example.ai.MensajeChat(
+            texto = query,
+            esDelUsuario = true
+        )
+        _aiMessages.value = _aiMessages.value + userMsg
+
+        viewModelScope.launch {
+            _isAiLoading.value = true
+            try {
+                val currentPatientName = userProfile.value?.fullName ?: "Sr. Sebastian"
+                val currentEmergencyPhone = userProfile.value?.emergencyContactPhone ?: "+57 310 456 7890"
+                val respuesta = asistenteManager.responderConsulta(
+                    preguntaUsuario = query,
+                    medicamentosActivos = medications.value,
+                    nombrePaciente = currentPatientName,
+                    telefonoEmergencia = currentEmergencyPhone
+                )
+                _aiMessages.value = _aiMessages.value + respuesta
+            } catch (_: Exception) {
+                val fallbackMsg = com.example.ai.MensajeChat(
+                    texto = "Disculpa, tuve un pequeño inconveniente al consultar la información. Por favor, revisa tu lista de medicamentos o comunícate con tu médico de confianza.",
+                    esDelUsuario = false
+                )
+                _aiMessages.value = _aiMessages.value + fallbackMsg
+            } finally {
+                _isAiLoading.value = false
+            }
+        }
     }
 }

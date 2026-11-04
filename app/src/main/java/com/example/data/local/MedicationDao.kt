@@ -8,6 +8,9 @@ interface MedicationDao {
     @Query("SELECT * FROM medications ORDER BY isTakenToday ASC, scheduleTime ASC")
     fun getAllMedications(): Flow<List<MedicationEntity>>
 
+    @Query("SELECT * FROM medications")
+    suspend fun getAllMedicationsList(): List<MedicationEntity>
+
     @Query("SELECT * FROM medications WHERE id = :id")
     suspend fun getMedicationById(id: Long): MedicationEntity?
 
@@ -22,6 +25,9 @@ interface MedicationDao {
 
     @Query("DELETE FROM medications WHERE id = :id")
     suspend fun deleteMedication(id: Long)
+
+    @Query("DELETE FROM medications")
+    suspend fun clearAllMedications()
 
     @Query("UPDATE medications SET isTakenToday = 0")
     suspend fun resetAllDailyTakens()

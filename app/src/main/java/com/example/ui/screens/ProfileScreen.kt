@@ -77,9 +77,9 @@ fun ProfileScreen(
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = { onNavigate(AppScreen.HISTORIAL_CUMPLIMIENTO) },
-                    icon = { Icon(Icons.Default.BarChart, contentDescription = "Cumplimiento") },
-                    label = { Text("Cumplimiento", fontSize = 13.sp) },
+                    onClick = { onNavigate(AppScreen.CALENDARIO) },
+                    icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendario") },
+                    label = { Text("Calendario", fontSize = 12.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = TextLightBlue,
                         unselectedTextColor = TextLightBlue
@@ -88,9 +88,9 @@ fun ProfileScreen(
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = { onNavigate(AppScreen.AI_ASSISTANT) },
-                    icon = { Icon(Icons.Default.SmartToy, contentDescription = "Asistente IA") },
-                    label = { Text("Asistente IA", fontSize = 13.sp) },
+                    onClick = { onNavigate(AppScreen.HISTORIAL_CUMPLIMIENTO) },
+                    icon = { Icon(Icons.Default.BarChart, contentDescription = "Cumplimiento") },
+                    label = { Text("Cumplimiento", fontSize = 13.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = TextLightBlue,
                         unselectedTextColor = TextLightBlue
@@ -251,17 +251,36 @@ fun ProfileScreen(
                     .padding(top = 8.dp)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Recordatorios con AlarmManager",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextWhite
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MintInteractive.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Exact Alarm ✓",
+                                color = MintInteractive,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                     Text(
-                        text = "Sistema de Notificaciones Push Activo",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextWhite
-                    )
-                    Text(
-                        text = "Envía alertas sonoras y con vibración para recordar la hora exacta de cada medicamento.",
-                        fontSize = 14.sp,
+                        text = "Utiliza el servicio AlarmManager del sistema Android para disparar alertas puntuales aún con la pantalla apagada o en ahorro de batería. Incluye botones de 'Tomar Dosis' y 'Posponer 10 min'.",
+                        fontSize = 13.sp,
                         color = TextLightBlue,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
+                        modifier = Modifier.padding(top = 6.dp, bottom = 14.dp)
                     )
 
                     Button(
@@ -273,12 +292,12 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(50.dp)
                             .testTag("trigger_push_test_btn")
                     ) {
-                        Icon(Icons.Default.NotificationsActive, contentDescription = null)
+                        Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Simular Notificación Push de Medicamento", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text("Probar Alarma en 3s con AlarmManager", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
@@ -309,8 +328,8 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Lectura en voz alta (TTS)", fontSize = 16.sp, color = TextWhite, fontWeight = FontWeight.SemiBold)
-                            Text("Lee automáticamente las respuestas de la IA", fontSize = 13.sp, color = TextLightBlue)
+                            Text("Alertas Audibles", fontSize = 16.sp, color = TextWhite, fontWeight = FontWeight.SemiBold)
+                            Text("Sonido de recordatorio para horarios de toma", fontSize = 13.sp, color = TextLightBlue)
                         }
                         Switch(
                             checked = voiceEnabled,
@@ -338,7 +357,7 @@ fun ProfileScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Modo Alto Contraste", fontSize = 16.sp, color = TextWhite, fontWeight = FontWeight.SemiBold)
-                            Text("Optimizado en Azul Marino, Menta y Blanco", fontSize = 13.sp, color = TextLightBlue)
+                            Text("Optimizado en Verde Esmeralda y Carbón de Marca", fontSize = 13.sp, color = TextLightBlue)
                         }
                         Switch(
                             checked = highContrastEnabled,

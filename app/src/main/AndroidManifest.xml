@@ -5,6 +5,17 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <queries>
+        <!-- Package visibility for Android Speech Recognition -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -37,6 +48,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- AlarmManager BroadcastReceiver for scheduled medication reminders and reboot recovery -->
+        <receiver
+            android:name=".notifications.MedicationAlarmReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.notifications.ACTION_MEDICATION_REMINDER" />
+                <action android:name="com.example.notifications.ACTION_TEST_REMINDER" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Interactive action receiver for direct notification actions (Take Dose, Snooze) -->
+        <receiver
+            android:name=".notifications.MedicationNotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.notifications.ACTION_MARK_TAKEN" />
+                <action android:name="com.example.notifications.ACTION_SNOOZE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -79,36 +79,45 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 16.dp)
             ) {
+                // Logotipo Oficial Healthy Chronos
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(NavySurfaceVariant)
-                        .border(2.dp, MintInteractive, CircleShape),
+                        .size(94.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(androidx.compose.ui.graphics.Color.White)
+                        .padding(5.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.MedicalServices,
-                        contentDescription = "Logo Healty Chronos",
-                        tint = MintInteractive,
-                        modifier = Modifier.size(42.dp)
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_brand_icon),
+                        contentDescription = "Logotipo Healthy Chronos",
+                        modifier = Modifier.size(84.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Text(
-                    text = "Healty Chronos",
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextWhite,
-                    textAlign = TextAlign.Center
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "HEALTHY ",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextWhite,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "CHRONOS",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = BrandGreen,
+                        letterSpacing = 1.sp
+                    )
+                }
 
                 Text(
                     text = "Gestión Inteligente de Medicación",
-                    fontSize = 17.sp,
-                    color = MintInteractive,
+                    fontSize = 16.sp,
+                    color = BrandGreenAccent,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 4.dp)
                 )

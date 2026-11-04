@@ -71,7 +71,7 @@ fun HistorialCumplimientoScreen(
     emergencyContact: String = "Isabela Sosa (Hija)",
     emergencyPhone: String = "+57 310 456 7890",
     onNavigateToDashboard: () -> Unit = {},
-    onNavigateToAsistenteIa: () -> Unit = {},
+    onNavigateToCalendario: () -> Unit = {},
     onNavigateToPerfil: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -240,6 +240,24 @@ fun HistorialCumplimientoScreen(
                 )
 
                 NavigationBarItem(
+                    selected = false,
+                    onClick = onNavigateToCalendario,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = "Calendario"
+                        )
+                    },
+                    label = {
+                        Text(text = "Calendario", fontSize = 12.sp)
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        unselectedIconColor = TextLightBlue,
+                        unselectedTextColor = TextLightBlue
+                    )
+                )
+
+                NavigationBarItem(
                     selected = true,
                     onClick = { /* Ya estamos aquí */ },
                     icon = {
@@ -255,24 +273,6 @@ fun HistorialCumplimientoScreen(
                         selectedIconColor = NavyDark,
                         selectedTextColor = MintInteractive,
                         indicatorColor = MintInteractive,
-                        unselectedIconColor = TextLightBlue,
-                        unselectedTextColor = TextLightBlue
-                    )
-                )
-
-                NavigationBarItem(
-                    selected = false,
-                    onClick = onNavigateToAsistenteIa,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.SmartToy,
-                            contentDescription = "Asistente IA"
-                        )
-                    },
-                    label = {
-                        Text(text = "Asistente IA", fontSize = 13.sp)
-                    },
-                    colors = NavigationBarItemDefaults.colors(
                         unselectedIconColor = TextLightBlue,
                         unselectedTextColor = TextLightBlue
                     )
