@@ -1,9 +1,9 @@
 package com.example.data.model
 
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
+
 
 /**
  * Modelo de contacto de emergencia para el adulto mayor.
@@ -43,7 +43,6 @@ data class Paciente(
  * Subcolección: `users/{userId}/medicamentos/{medicamentoId}`
  */
 data class Medicamento(
-    @DocumentId
     val id: String = "",
     val nombre: String = "",
     val dosis: String = "",
@@ -54,3 +53,4 @@ data class Medicamento(
     @ServerTimestamp
     val creadoEn: Date? = null
 )
+

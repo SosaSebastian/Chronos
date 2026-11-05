@@ -217,8 +217,17 @@ class FirebaseMedicationRepository(
                 .get()
                 .awaitTask()
 
-            val lista = querySnapshot.toObjects(Medicamento::class.java)
-                .sortedBy { it.horaToma }
+            val lista = querySnapshot.documents.mapNotNull { doc ->
+                val med = try {
+                    doc.toObject(Medicamento::class.java)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error deserializando documento ${doc.id}: ${e.message}")
+                    null
+                }
+                if (med != null) {
+                    if (med.id.isBlank()) med.copy(id = doc.id) else med
+                } else null
+            }.sortedBy { it.horaToma }
 
             Resource.Success(lista)
         } catch (e: Exception) {
@@ -254,14 +263,24 @@ class FirebaseMedicationRepository(
                 }
 
                 if (snapshot != null) {
-                    val medicamentos = snapshot.toObjects(Medicamento::class.java)
-                        .sortedBy { it.horaToma }
+                    val medicamentos = snapshot.documents.mapNotNull { doc ->
+                        val med = try {
+                            doc.toObject(Medicamento::class.java)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error deserializando snapshot ${doc.id}: ${e.message}")
+                            null
+                        }
+                        if (med != null) {
+                            if (med.id.isBlank()) med.copy(id = doc.id) else med
+                        } else null
+                    }.sortedBy { it.horaToma }
                     trySend(Resource.Success(medicamentos))
                 }
             }
 
         awaitClose { listener.remove() }
     }
+
 
     /**
      * Actualiza el estado activo/inactivo de un medicamento.
