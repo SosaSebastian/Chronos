@@ -3,6 +3,10 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ai.voz.EstadoEscucha
+import com.example.ai.voz.LectorVoz
+import com.example.ai.voz.ReconocedorVoz
+import com.example.ai.voz.VozUtils
 import com.example.data.local.AppDatabase
 import com.example.data.local.MedicationEntity
 import com.example.data.local.UserProfileEntity
@@ -39,18 +43,8 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     val firebaseRepo = FirebaseMedicationRepository()
     val authManager = com.example.auth.FirebaseAuthManager()
 
-    // Asistente Virtual Inteligente con soporte para Voz Externa (Retell AI) y Audio Local
+    // Asistente Virtual Inteligente (texto y voz: la voz usa el mismo asistente)
     val asistenteManager = com.example.ai.AsistenteMedicacionManager(application)
-    val retellManager = com.example.ai.retell.RetellAiManager(application)
-    val voiceResponseManager = com.example.ai.voice.VoiceResponseManager(application)
-
-    val isSpeaking: StateFlow<Boolean> = voiceResponseManager.isSpeaking
-    val isVoiceAudioEnabled: StateFlow<Boolean> = voiceResponseManager.isVoiceAudioEnabled
-    val micAmplitude: StateFlow<Float> = retellManager.micAmplitude
-    val waveformAmplitudes: StateFlow<List<Float>> = retellManager.waveformAmplitudes
-    val liveTranscriptions: StateFlow<List<com.example.ai.retell.RetellUtterance>> = retellManager.liveTranscriptions
-    val connectionLatencyMs: StateFlow<Long> = retellManager.connectionLatencyMs
-    val connectionQuality: StateFlow<com.example.ai.retell.RetellConnectionQuality> = retellManager.connectionQuality
 
     val currentScreen = MutableStateFlow(AppScreen.LOGIN)
 
@@ -399,8 +393,14 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         _notificationSuccessMessage.value = null
     }
 
-    fun askAssistant(query: String) {
+    /**
+     * Envía una pregunta al asistente. [porVoz] = true cuando llegó por el micrófono:
+     * entonces la respuesta también se lee en voz alta (si el parlante está activo).
+     * Texto y voz usan el mismo AsistenteMedicacionManager, con los mismos filtros y el aviso médico.
+     */
+    fun askAssistant(query: String, porVoz: Boolean = false) {
         if (query.isBlank() || _isAiLoading.value) return
+        // Conversación previa (sin la pregunta nueva) para que el asistente entienda preguntas de seguimiento.
         val historialPrevio = _aiMessages.value
         val userMsg = com.example.ai.MensajeChat(
             texto = query,
@@ -410,143 +410,115 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
         viewModelScope.launch {
             _isAiLoading.value = true
-            try {
+            val respuesta = try {
+                // Sin datos inventados: si el perfil no ha cargado, el asistente usa la línea de emergencias 123.
                 val currentPatientName = userProfile.value?.fullName.orEmpty()
                 val currentEmergencyPhone = userProfile.value?.emergencyContactPhone.orEmpty()
-                val currentDoctor = userProfile.value?.doctorName.orEmpty()
-
-                var respuestaTexto: String? = null
-
-                // Si Retell AI está configurado, consultar al agente de voz directamente
-                if (retellManager.isConfigured.value) {
-                    val retellChatRes = retellManager.enviarMensajeChat(
-                        mensajeUsuario = query,
-                        pacienteNombre = currentPatientName,
-                        medicamentos = medications.value,
-                        contactoEmergencia = currentEmergencyPhone,
-                        doctorTratante = currentDoctor
-                    )
-                    retellChatRes.onSuccess { text ->
-                        respuestaTexto = text
-                    }
-                }
-
-                val respuesta = if (!respuestaTexto.isNullOrBlank()) {
-                    com.example.ai.MensajeChat(
-                        texto = respuestaTexto!!,
-                        esDelUsuario = false
-                    )
-                } else {
-                    asistenteManager.responderConsulta(
-                        preguntaUsuario = query,
-                        medicamentosActivos = medications.value,
-                        nombrePaciente = currentPatientName,
-                        telefonoEmergencia = currentEmergencyPhone,
-                        historial = historialPrevio
-                    )
-                }
-                _aiMessages.value = _aiMessages.value + respuesta
-
-                // Reproducir respuesta por voz si está habilitada
-                if (isVoiceAudioEnabled.value) {
-                    voiceResponseManager.speak(respuesta.texto)
-                }
+                asistenteManager.responderConsulta(
+                    preguntaUsuario = query,
+                    medicamentosActivos = medications.value,
+                    nombrePaciente = currentPatientName,
+                    telefonoEmergencia = currentEmergencyPhone,
+                    historial = historialPrevio
+                )
             } catch (_: Exception) {
-                val fallbackMsg = com.example.ai.MensajeChat(
+                com.example.ai.MensajeChat(
                     texto = "Disculpa, tuve un pequeño inconveniente al consultar la información. Por favor, revisa tu lista de medicamentos o comunícate con tu médico de confianza.",
                     esDelUsuario = false
                 )
-                _aiMessages.value = _aiMessages.value + fallbackMsg
-                if (isVoiceAudioEnabled.value) {
-                    voiceResponseManager.speak(fallbackMsg.texto)
-                }
             } finally {
                 _isAiLoading.value = false
             }
+            _aiMessages.value = _aiMessages.value + respuesta
+            responderPorVoz(respuesta, porVoz)
         }
     }
 
     // =========================================================================
-    // MÉTODOS DE INTEGRACIÓN RETELL AI Y FORMATO DE VOZ
+    // ASISTENTE DE VOZ: escuchar (ReconocedorVoz) → pensar (askAssistant) → hablar (LectorVoz)
     // =========================================================================
 
-    fun toggleSpeakerphone(): Boolean = retellManager.toggleSpeakerphone()
+    // Se crean solo al abrir el asistente, para no iniciar el micrófono ni la voz en el resto de la app.
+    private val reconocedorVozDelegate = lazy { ReconocedorVoz(getApplication<Application>()) }
+    private val reconocedorVoz by reconocedorVozDelegate
+    private val lectorVozDelegate = lazy { LectorVoz(getApplication<Application>()) }
+    private val lectorVoz by lectorVozDelegate
 
-    fun toggleMicMute(): Boolean = retellManager.toggleMicMute()
+    val estadoEscucha: StateFlow<EstadoEscucha> get() = reconocedorVoz.estado
+    val textoParcialVoz: StateFlow<String> get() = reconocedorVoz.textoParcial
+    val nivelVoz: StateFlow<Float> get() = reconocedorVoz.nivel
+    val asistenteHablando: StateFlow<Boolean> get() = lectorVoz.hablando
 
-    fun toggleVoiceAudio(): Boolean = voiceResponseManager.toggleVoiceAudio()
+    /** Parlante: si está activo, las respuestas a preguntas hechas por voz se leen en voz alta. */
+    private val _lecturaEnVozAlta = MutableStateFlow(true)
+    val lecturaEnVozAlta: StateFlow<Boolean> = _lecturaEnVozAlta.asStateFlow()
 
-    fun setVoiceAudioEnabled(enabled: Boolean) = voiceResponseManager.setVoiceAudioEnabled(enabled)
+    /** Modo conversación: después de responder, el asistente vuelve a escuchar solo. */
+    private val _modoConversacion = MutableStateFlow(false)
+    val modoConversacion: StateFlow<Boolean> = _modoConversacion.asStateFlow()
 
-    fun speakAssistantResponse(texto: String) = voiceResponseManager.speak(texto)
+    /** Mensaje para el paciente cuando la voz falla (sin permiso, sin conexión, no se entendió...). */
+    private val _avisoVoz = MutableStateFlow<String?>(null)
+    val avisoVoz: StateFlow<String?> = _avisoVoz.asStateFlow()
 
-    fun stopSpeaking() = voiceResponseManager.stop()
-
-    fun restablecerCredencialesEntorno() = retellManager.restablecerCredencialesEntorno()
-
-    fun guardarCredencialesRetell(apiKey: String, agentId: String) =
-        retellManager.guardarCredenciales(apiKey, agentId)
-
-    fun probarConexionRetell(onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            val result = retellManager.probarConexion()
-            result.onSuccess { msg -> onResult(true, msg) }
-                .onFailure { ex -> onResult(false, ex.localizedMessage ?: "Error de conexión con Retell AI.") }
-        }
+    fun iniciarEscuchaVoz() {
+        if (_isAiLoading.value) return
+        lectorVoz.detener()
+        _avisoVoz.value = null
+        reconocedorVoz.escuchar(
+            alReconocer = { texto -> askAssistant(texto, porVoz = true) },
+            alFallar = { mensaje -> _avisoVoz.value = mensaje }
+        )
     }
 
-    fun iniciarLlamadaRetell(
-        onSuccess: (String) -> Unit = {},
-        onError: (String) -> Unit = {}
-    ) {
-        viewModelScope.launch {
-            val patientName = userProfile.value?.fullName.orEmpty().ifBlank { "Paciente" }
-            val emergencyPhone = userProfile.value?.emergencyContactPhone.orEmpty().ifBlank { "+57 310 456 7890" }
-            val doctor = userProfile.value?.doctorName.orEmpty()
+    /** El paciente terminó de hablar: se envía lo que dijo. */
+    fun detenerEscuchaVoz() = reconocedorVoz.detener()
 
-            val result = retellManager.iniciarLlamadaWeb(
-                pacienteNombre = patientName,
-                medicamentos = medications.value,
-                contactoEmergencia = emergencyPhone,
-                doctorTratante = doctor
-            )
-
-            result.onSuccess { callResponse ->
-                val webCallUrl = "https://web-call.retellai.com/?access_token=${callResponse.accessToken}"
-                onSuccess(webCallUrl)
-            }.onFailure { ex ->
-                onError(ex.localizedMessage ?: "No se pudo iniciar la llamada con Retell AI.")
-            }
-        }
+    /** Corta todo (micrófono y voz). Se usa al salir de la pantalla o al tocar "Detener". */
+    fun cancelarVoz() {
+        if (reconocedorVozDelegate.isInitialized()) reconocedorVoz.cancelar()
+        if (lectorVozDelegate.isInitialized()) lectorVoz.detener()
     }
 
-    fun finalizarLlamadaRetell() {
-        val lastCallId = retellManager.activeCallId.value
-        retellManager.finalizarLlamada()
+    /** Botón "Escuchar" de cada respuesta: la lee en voz alta, aunque se haya preguntado escribiendo. */
+    fun leerMensajeEnVozAlta(mensaje: com.example.ai.MensajeChat) {
+        reconocedorVoz.cancelar()
+        lectorVoz.hablar(mensaje.texto)
+    }
 
-        if (!lastCallId.isNullOrBlank() && retellManager.isConfigured.value) {
-            viewModelScope.launch {
-                try {
-                    val transRes = retellManager.obtenerTranscripcionLlamada(lastCallId)
-                    transRes.onSuccess { utterances ->
-                        if (utterances.isNotEmpty()) {
-                            val newChatMsgs = utterances.map { u ->
-                                com.example.ai.MensajeChat(
-                                    texto = u.content,
-                                    esDelUsuario = u.role.equals("user", ignoreCase = true)
-                                )
-                            }
-                            _aiMessages.value = _aiMessages.value + newChatMsgs
-                        }
-                    }
-                } catch (_: Exception) {}
+    fun alternarLecturaEnVozAlta() {
+        _lecturaEnVozAlta.value = !_lecturaEnVozAlta.value
+        if (!_lecturaEnVozAlta.value) lectorVoz.detener()
+    }
+
+    fun alternarModoConversacion() {
+        _modoConversacion.value = !_modoConversacion.value
+    }
+
+    fun avisarPermisoMicrofonoNegado() {
+        _avisoVoz.value = VozUtils.SIN_PERMISO
+    }
+
+    fun descartarAvisoVoz() {
+        _avisoVoz.value = null
+    }
+
+    private fun responderPorVoz(respuesta: com.example.ai.MensajeChat, porVoz: Boolean) {
+        if (!porVoz) return
+        val volverAEscuchar = VozUtils.debeVolverAEscuchar(_modoConversacion.value, porVoz, respuesta)
+        if (_lecturaEnVozAlta.value) {
+            lectorVoz.hablar(respuesta.texto) {
+                if (volverAEscuchar && _modoConversacion.value) iniciarEscuchaVoz()
             }
+        } else if (volverAEscuchar) {
+            iniciarEscuchaVoz()
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        voiceResponseManager.shutdown()
-        retellManager.audioController.resetAudio()
+        if (reconocedorVozDelegate.isInitialized()) reconocedorVoz.liberar()
+        if (lectorVozDelegate.isInitialized()) lectorVoz.liberar()
     }
+
 }

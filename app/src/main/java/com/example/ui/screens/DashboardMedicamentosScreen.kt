@@ -471,13 +471,13 @@ fun DashboardMedicamentosScreen(
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Agente IA • Retell AI Voice",
+                            text = "Asistente de Medicación",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextWhite
                         )
                         Text(
-                            text = "Voz externa hiperrealista y asistente inteligente. Consulta tus medicamentos, dosis, horarios y recomendaciones",
+                            text = "¿Dudas con tus pastillas u horarios? Pregúntale a tu asistente escribiendo o por voz",
                             fontSize = 13.sp,
                             color = TextLightBlue,
                             lineHeight = 17.sp

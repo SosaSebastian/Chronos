@@ -2,7 +2,7 @@
 
 **Sistema de gestión de medicamentos y recordatorios para adultos mayores y pacientes con tratamientos crónicos.**
 
-Aplicación nativa para Android desarrollada en Kotlin con Jetpack Compose, Firebase, un asistente virtual de texto con inteligencia artificial (Gemini) y una automatización en n8n que avisa por correo cuando una dosis queda sin tomar.
+Aplicación nativa para Android desarrollada en Kotlin con Jetpack Compose, Firebase, un asistente virtual de texto y voz con inteligencia artificial (Gemini) y una automatización en n8n que avisa por correo cuando una dosis queda sin tomar.
 
 Proyecto integrador — **Optativa II: Desarrollo de Aplicaciones para Dispositivos Móviles**
 Universidad de San Buenaventura, Bogotá · Prof. Jairo A. Salcedo Aranda
@@ -41,7 +41,7 @@ La adherencia a tratamientos crónicos ronda el 50 % (OMS). Los pacientes, en es
 - Recibir alarmas a la hora exacta de cada toma, con acciones directas desde la notificación.
 - Consultar un calendario y un historial de cumplimiento con porcentaje de adherencia.
 - Exportar un reporte PDF para el médico tratante.
-- Hacer preguntas por texto a un asistente IA que responde con base en los medicamentos reales del paciente.
+- Hacer preguntas por texto o por voz a un asistente IA que responde con base en los medicamentos reales del paciente.
 - Recibir un correo cuando una dosis no se confirma a tiempo (automatización con n8n).
 
 **Fuera del alcance de esta versión:** versión iOS (se plantea con Kotlin Multiplatform), vinculación de cuidadores dentro de la app y registro de citas médicas.
@@ -61,7 +61,7 @@ La adherencia a tratamientos crónicos ronda el 50 % (OMS). Los pacientes, en es
 | RF07 | Marcar una dosis como tomada o posponerla desde la notificación. |
 | RF08 | Ver calendario e historial de cumplimiento con % de adherencia. |
 | RF09 | Generar y compartir un reporte PDF de cumplimiento. |
-| RF10 | Asistente IA de texto para consultas sobre el tratamiento. |
+| RF10 | Asistente IA de texto y voz para consultas sobre el tratamiento (escucha la pregunta y lee la respuesta en voz alta). |
 | RF11 | Dictado por voz del nombre y las indicaciones al registrar un medicamento. |
 | RF12 | Aviso por correo al usuario registrado cuando una dosis no se confirma en 30 minutos. |
 
@@ -129,7 +129,8 @@ La adherencia a tratamientos crónicos ronda el 50 % (OMS). Los pacientes, en es
 app/src/main/java/com/example/
 ├── MainActivity.kt                 # Punto de entrada y navegación
 ├── ai/
-│   └── AsistenteMedicacionManager.kt   # Asistente de texto (Gemini + respaldo local)
+│   ├── AsistenteMedicacionManager.kt   # Asistente (Gemini + filtros + respaldo local), para texto y voz
+│   └── voz/                        # Asistente de voz: ReconocedorVoz (escuchar), LectorVoz (hablar), VozUtils (reglas)
 ├── auth/
 │   └── FirebaseAuthManager.kt      # Login, registro y cierre de sesión
 ├── data/
@@ -235,16 +236,24 @@ users/{uid}
 
 ## 8. Agente de inteligencia artificial
 
-**Propósito:** asistente de texto experto y empático para el seguimiento de los medicamentos del usuario. Responde sobre los medicamentos registrados, da recomendaciones generales y seguras de uso (por ejemplo, con alimentos o precauciones con el sol) y ayuda a organizar los horarios de las tomas. No reemplaza al médico.
+**Propósito:** asistente de texto y voz experto y empático para el seguimiento de los medicamentos del usuario. Responde sobre los medicamentos registrados, da recomendaciones generales y seguras de uso (por ejemplo, con alimentos o precauciones con el sol) y ayuda a organizar los horarios de las tomas. No reemplaza al médico.
 
 **Funcionamiento** (`AsistenteMedicacionManager.kt`):
 
-1. El usuario escribe su pregunta en la pantalla **Asistente IA** (máximo 600 caracteres).
+1. El usuario escribe su pregunta en la pantalla **Asistente IA** (máximo 600 caracteres) o la dice con el micrófono.
 2. **Filtro de emergencias local:** si describe síntomas graves (dolor en el pecho, falta de aire, reacción alérgica severa, desmayo, sobredosis), responde de inmediato con la línea de emergencias 123 y el contacto de emergencia, sin esperar a la IA.
 3. **Filtro de alcance local:** temas ajenos a la salud reciben siempre la frase definida para fuera de alcance.
 4. **Gemini (`gemini-3.8-flash`) con instrucciones de sistema:** recibe el contexto del asistente, las reglas, la fecha y hora de Colombia, los medicamentos registrados (RAG) y los últimos 6 mensajes de la conversación. La pregunta va separada de las instrucciones, para que el usuario no pueda cambiar las reglas.
 5. **Motor local de respaldo:** si Gemini falla, no hay internet o tarda más de 35 s, responde con los datos registrados (qué falta por tomar, la próxima toma, dosis e indicaciones).
 6. **Aviso médico obligatorio:** va en el primer mensaje y lo agrega el código a cada recomendación sobre un medicamento o un síntoma.
+
+**Asistente de voz** (`ai/voz/`): la voz no es otra IA, es otra forma de hablar con el mismo asistente.
+
+1. **Escuchar** (`ReconocedorVoz`): reconocedor de voz de Android en español de Colombia; muestra en pantalla lo que el paciente va diciendo.
+2. **Pensar:** el texto reconocido pasa por los mismos pasos 2 a 6 de arriba (emergencias, alcance, Gemini, respaldo y aviso médico).
+3. **Hablar** (`LectorVoz`): lee la respuesta con la voz de Android, sin etiquetas ni emojis y con las unidades completas ("50 miligramos").
+4. **Modo conversación** (opcional): después de responder vuelve a escuchar solo. Se detiene ante una alerta de emergencia, si no entiende o al salir de la pantalla.
+5. **Fallos controlados:** sin permiso de micrófono, sin conexión, sin reconocedor o si no entendió, muestra un mensaje claro y el paciente puede escribir. No usa servicios pagos ni claves adicionales.
 
 **Controles de seguridad del agente:**
 
@@ -273,12 +282,13 @@ El reporte queda en `app/build/reports/tests/testDebugUnitTest/index.html`.
 
 | Archivo | Pruebas | Qué cubre |
 |---|---|---|
-| `ExampleRobolectricTest.kt` | 17 | Modelos, notificaciones, calendario, adherencia, alarmas y agente IA |
+| `ExampleRobolectricTest.kt` | 20 | Modelos, notificaciones, calendario (con días de la semana), adherencia, alarmas y agente IA |
 | `PruebasFuncionamientoTest.kt` | 8 | Persistencia en Room (PF01–PF04) y casos del plan CP01, CP02, CP03 y CP05 |
 | `FormulariosYBotonesTest.kt` | 8 | Botones y formularios de la pantalla de inicio de sesión (Compose Testing) |
-| `ValidacionFormulariosTest.kt` | 9 | Validación de los formularios de paciente y de medicamento |
+| `ValidacionFormulariosTest.kt` | 12 | Validación de los formularios de paciente y de medicamento, y modo edición |
 | `DosisOmitidaTest.kt` | 3 | Aviso de dosis omitida hacia n8n (CP07) |
 | `AsistenteIATest.kt` | 16 | Alcance, aviso médico, emergencias, respaldo sin internet e historial del asistente |
+| `VozAsistenteTest.kt` | 10 | Asistente de voz: limpieza del texto, errores, modo conversación y pantalla (VZ01–VZ10) |
 | `pruebas-firestore/` | 9 | Reglas de seguridad de Firestore (requiere Node 18+ y Java 11+: `npm install` y `npm run test:rules`) |
 
 **Datos de prueba sugeridos para la demostración:**
@@ -320,10 +330,14 @@ En el panel principal, cada tarjeta tiene dos íconos:
 - **Lápiz (Editar medicamento):** abre el formulario con los datos actuales. Se cambian y se toca **Guardar Cambios**; el recordatorio se ajusta a la hora nueva.
 - **Papelera (Eliminar medicamento):** pide confirmación y lo borra de la app y de Firestore.
 
-### Consultar al asistente IA (por texto)
+### Consultar al asistente IA (por texto o por voz)
 1. Tocar **Asistente IA** en el panel principal.
-2. Escribir la pregunta. Ejemplos: *"¿Qué me falta por tomar hoy?"*, *"¿Puedo tomar el Losartán con café?"*
-3. El asistente responde con base en los medicamentos registrados. **No reemplaza la consulta médica.**
+2. **Por texto:** escribir la pregunta y tocar Enviar. Ejemplos: *"¿Qué me falta por tomar hoy?"*, *"¿Puedo tomar el Losartán con café?"*
+3. **Por voz:** con el campo vacío, tocar el **micrófono** (la primera vez pide permiso), hablar y tocar **Ya terminé** (o esperar a terminar de hablar). La respuesta se lee en voz alta.
+4. Arriba están el **parlante** (activa o silencia las respuestas en voz alta) y el **modo conversación** (después de responder vuelve a escuchar solo). Cada respuesta tiene un botón **Escuchar**.
+5. El asistente responde con base en los medicamentos registrados. **No reemplaza la consulta médica.**
+
+En el emulador, para usar el micrófono del computador: menú **⋮ → Extended Controls → Microphone → "Virtual microphone uses host audio input"**.
 
 ### Perfil y ajustes
 En **Mi Perfil** se ven los datos del paciente, el botón para **llamar al contacto de emergencia**, opciones de sonido y alto contraste, una prueba de alarma y el botón **Cerrar Sesión**.

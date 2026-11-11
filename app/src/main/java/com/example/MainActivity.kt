@@ -261,22 +261,14 @@ class MainActivity : ComponentActivity() {
                             }
 
                             AppScreen.AI_ASSISTANT -> {
-                                val retellCallState by medicationViewModel.retellManager.callState.collectAsStateWithLifecycle()
-                                val retellWebCallUrl by medicationViewModel.retellManager.activeWebCallUrl.collectAsStateWithLifecycle()
-                                val isRetellConfigured by medicationViewModel.retellManager.isConfigured.collectAsStateWithLifecycle()
-                                val retellApiKey by medicationViewModel.retellManager.apiKey.collectAsStateWithLifecycle()
-                                val retellAgentId by medicationViewModel.retellManager.agentId.collectAsStateWithLifecycle()
-                                val isSpeakerphoneOn by medicationViewModel.retellManager.isSpeakerphoneOn.collectAsStateWithLifecycle()
-                                val isMicMuted by medicationViewModel.retellManager.isMicMuted.collectAsStateWithLifecycle()
-                                val callDurationSeconds by medicationViewModel.retellManager.callDurationSeconds.collectAsStateWithLifecycle()
-                                val retellAgentSource by medicationViewModel.retellManager.agentSource.collectAsStateWithLifecycle()
-                                val liveTranscriptions by medicationViewModel.liveTranscriptions.collectAsStateWithLifecycle()
-                                val connectionLatencyMs by medicationViewModel.connectionLatencyMs.collectAsStateWithLifecycle()
-                                val connectionQuality by medicationViewModel.connectionQuality.collectAsStateWithLifecycle()
-                                val isSpeaking by medicationViewModel.isSpeaking.collectAsStateWithLifecycle()
-                                val isVoiceAudioEnabled by medicationViewModel.isVoiceAudioEnabled.collectAsStateWithLifecycle()
-                                val micAmplitude by medicationViewModel.micAmplitude.collectAsStateWithLifecycle()
-                                val waveformAmplitudes by medicationViewModel.waveformAmplitudes.collectAsStateWithLifecycle()
+                                // Estado del asistente de voz
+                                val estadoEscucha by medicationViewModel.estadoEscucha.collectAsStateWithLifecycle()
+                                val textoParcialVoz by medicationViewModel.textoParcialVoz.collectAsStateWithLifecycle()
+                                val nivelVoz by medicationViewModel.nivelVoz.collectAsStateWithLifecycle()
+                                val asistenteHablando by medicationViewModel.asistenteHablando.collectAsStateWithLifecycle()
+                                val lecturaEnVozAlta by medicationViewModel.lecturaEnVozAlta.collectAsStateWithLifecycle()
+                                val modoConversacion by medicationViewModel.modoConversacion.collectAsStateWithLifecycle()
+                                val avisoVoz by medicationViewModel.avisoVoz.collectAsStateWithLifecycle()
 
                                 AsistenteVirtualScreen(
                                     patientName = userProfile?.fullName.orEmpty(),
@@ -285,59 +277,28 @@ class MainActivity : ComponentActivity() {
                                         ?: com.example.ai.AsistenteMedicacionManager.LINEA_EMERGENCIAS,
                                     messages = aiMessages,
                                     isLoading = isAiLoading,
-                                    retellCallState = retellCallState,
-                                    retellWebCallUrl = retellWebCallUrl,
-                                    isRetellConfigured = isRetellConfigured,
-                                    retellApiKey = retellApiKey,
-                                    retellAgentId = retellAgentId,
-                                    isSpeakerphoneOn = isSpeakerphoneOn,
-                                    isMicMuted = isMicMuted,
-                                    callDurationSeconds = callDurationSeconds,
-                                    retellAgentSource = retellAgentSource,
-                                    liveTranscriptions = liveTranscriptions,
-                                    connectionLatencyMs = connectionLatencyMs,
-                                    connectionQuality = connectionQuality,
-                                    isSpeaking = isSpeaking,
-                                    isVoiceAudioEnabled = isVoiceAudioEnabled,
-                                    micAmplitude = micAmplitude,
-                                    waveformAmplitudes = waveformAmplitudes,
-                                    onStartRetellCall = {
-                                        medicationViewModel.iniciarLlamadaRetell()
-                                    },
-                                    onEndRetellCall = {
-                                        medicationViewModel.finalizarLlamadaRetell()
-                                    },
-                                    onToggleSpeakerphone = {
-                                        medicationViewModel.toggleSpeakerphone()
-                                    },
-                                    onToggleMicMute = {
-                                        medicationViewModel.toggleMicMute()
-                                    },
-                                    onToggleVoiceAudio = {
-                                        medicationViewModel.toggleVoiceAudio()
-                                    },
-                                    onSpeakMessage = { text ->
-                                        medicationViewModel.speakAssistantResponse(text)
-                                    },
-                                    onStopSpeaking = {
-                                        medicationViewModel.stopSpeaking()
-                                    },
-                                    onResetRetellToEnv = {
-                                        medicationViewModel.restablecerCredencialesEntorno()
-                                    },
-                                    onSaveRetellCredentials = { key, agent ->
-                                        medicationViewModel.guardarCredencialesRetell(key, agent)
-                                    },
-                                    onTestRetellConnection = { callback ->
-                                        medicationViewModel.probarConexionRetell(callback)
-                                    },
                                     onSendMessage = { query ->
                                         medicationViewModel.askAssistant(query)
                                     },
                                     onBack = {
-                                        medicationViewModel.finalizarLlamadaRetell()
+                                        medicationViewModel.cancelarVoz()
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
-                                    }
+                                    },
+                                    estadoEscucha = estadoEscucha,
+                                    textoParcial = textoParcialVoz,
+                                    nivelVoz = nivelVoz,
+                                    asistenteHablando = asistenteHablando,
+                                    lecturaEnVozAlta = lecturaEnVozAlta,
+                                    modoConversacion = modoConversacion,
+                                    avisoVoz = avisoVoz,
+                                    onIniciarEscucha = { medicationViewModel.iniciarEscuchaVoz() },
+                                    onDetenerEscucha = { medicationViewModel.detenerEscuchaVoz() },
+                                    onCancelarVoz = { medicationViewModel.cancelarVoz() },
+                                    onAlternarLectura = { medicationViewModel.alternarLecturaEnVozAlta() },
+                                    onAlternarModoConversacion = { medicationViewModel.alternarModoConversacion() },
+                                    onLeerMensaje = { mensaje -> medicationViewModel.leerMensajeEnVozAlta(mensaje) },
+                                    onPermisoMicrofonoNegado = { medicationViewModel.avisarPermisoMicrofonoNegado() },
+                                    onDescartarAvisoVoz = { medicationViewModel.descartarAvisoVoz() }
                                 )
                             }
                         }
