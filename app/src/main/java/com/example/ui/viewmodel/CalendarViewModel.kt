@@ -80,8 +80,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         // Semana actual (7 días que contienen la fecha seleccionada)
         val weekDays = generateWeekDays(selectedCal, todayCal, meds)
 
-        // Dosis del día seleccionado
-        val selectedDayDoses = meds.map { entity ->
+        // Dosis del día seleccionado (filtradas según los días programados de la semana)
+        val medsForSelectedDay = meds.filter { it.appliesToCalendarDay(selectedCal) }
+        val selectedDayDoses = medsForSelectedDay.map { entity ->
             val isTakenForThisDay = when {
                 isSelectedToday -> entity.isTakenToday
                 isSelectedPast -> {
@@ -101,7 +102,9 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 instructions = entity.instructions,
                 requiresFood = entity.requiresFood,
                 isTaken = isTakenForThisDay,
-                timeOfDay = parseTimeOfDay(entity.scheduleTime)
+                timeOfDay = parseTimeOfDay(entity.scheduleTime),
+                daysOfWeek = entity.daysOfWeek,
+                isEveryday = entity.isEveryday
             )
         }.sortedBy { it.scheduleTime }
 
@@ -212,14 +215,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val isSelected = isSameDay(cal, selectedCal)
         val isPast = cal.before(todayCal) && !isToday
 
-        val totalDoses = meds.size
+        val medsForDay = meds.filter { it.appliesToCalendarDay(cal) }
+        val totalDoses = medsForDay.size
         val takenDoses = when {
             totalDoses == 0 -> 0
-            isToday -> meds.count { it.isTakenToday }
+            isToday -> medsForDay.count { it.isTakenToday }
             isPast -> {
                 // Cálculo de adherencia para días pasados
                 val seed = (cal.get(Calendar.YEAR) * 365 + cal.get(Calendar.MONTH) * 31 + cal.get(Calendar.DAY_OF_MONTH)).toInt()
-                meds.count { ((seed + it.id) % 10).toInt() != 3 }
+                medsForDay.count { ((seed + it.id) % 10).toInt() != 3 }
             }
             else -> 0 // Días futuros
         }
@@ -264,7 +268,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         val monthNameFormat = SimpleDateFormat("MMMM", localeEs)
         val monthName = monthNameFormat.format(viewingCal.time).replaceFirstChar { it.uppercase() }
         val daysInMonth = viewingCal.getActualMaximum(Calendar.DAY_OF_MONTH)
-        val totalDosesScheduled = daysInMonth * meds.size.coerceAtLeast(1)
+        
+        var totalDosesScheduled = 0
+        val tempCal = (viewingCal.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
+        for (d in 1..daysInMonth) {
+            tempCal.set(Calendar.DAY_OF_MONTH, d)
+            totalDosesScheduled += meds.count { it.appliesToCalendarDay(tempCal) }
+        }
+        if (totalDosesScheduled == 0 && meds.isNotEmpty()) {
+            totalDosesScheduled = daysInMonth * meds.size
+        }
         val takenEstimate = (totalDosesScheduled * 0.92f).toInt()
         val percentage = if (totalDosesScheduled > 0) ((takenEstimate.toFloat() / totalDosesScheduled) * 100).toInt() else 100
 

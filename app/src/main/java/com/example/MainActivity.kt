@@ -149,7 +149,9 @@ class MainActivity : ComponentActivity() {
                                             dosis = med.dosis,
                                             horaToma = med.horaToma,
                                             categoria = med.categoria,
-                                            indicaciones = med.indicaciones
+                                            indicaciones = med.indicaciones,
+                                            diasSemana = med.diasSemana,
+                                            esTodosLosDias = med.esTodosLosDias
                                         )
                                         medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     }
@@ -202,7 +204,7 @@ class MainActivity : ComponentActivity() {
                                     onMedicamentoGuardado = { _ ->
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
-                                    onSyncLocal = { name, dosage, scheduleTime, category, instructions ->
+                                    onSyncLocal = { name, dosage, scheduleTime, category, instructions, diasSemana, esTodosLosDias ->
                                         val original = registrarMedicamentoViewModel.datosOriginales
                                         if (registrarMedicamentoViewModel.enModoEdicion && original != null) {
                                             // Edición: ya se actualizó en Firestore; se ajusta la copia local y la alarma.
@@ -213,7 +215,9 @@ class MainActivity : ComponentActivity() {
                                                 dosis = dosage,
                                                 horaToma = scheduleTime,
                                                 categoria = category,
-                                                indicaciones = instructions
+                                                indicaciones = instructions,
+                                                diasSemana = diasSemana,
+                                                esTodosLosDias = esTodosLosDias
                                             )
                                         } else {
                                             // Registro nuevo: ya quedó en Firestore; aquí solo se guarda local y se programa la alarma.
@@ -225,6 +229,8 @@ class MainActivity : ComponentActivity() {
                                                 instructions = instructions,
                                                 category = category,
                                                 requiresFood = true,
+                                                daysOfWeek = diasSemana,
+                                                isEveryday = esTodosLosDias,
                                                 sincronizarFirestore = false
                                             )
                                         }
@@ -255,6 +261,23 @@ class MainActivity : ComponentActivity() {
                             }
 
                             AppScreen.AI_ASSISTANT -> {
+                                val retellCallState by medicationViewModel.retellManager.callState.collectAsStateWithLifecycle()
+                                val retellWebCallUrl by medicationViewModel.retellManager.activeWebCallUrl.collectAsStateWithLifecycle()
+                                val isRetellConfigured by medicationViewModel.retellManager.isConfigured.collectAsStateWithLifecycle()
+                                val retellApiKey by medicationViewModel.retellManager.apiKey.collectAsStateWithLifecycle()
+                                val retellAgentId by medicationViewModel.retellManager.agentId.collectAsStateWithLifecycle()
+                                val isSpeakerphoneOn by medicationViewModel.retellManager.isSpeakerphoneOn.collectAsStateWithLifecycle()
+                                val isMicMuted by medicationViewModel.retellManager.isMicMuted.collectAsStateWithLifecycle()
+                                val callDurationSeconds by medicationViewModel.retellManager.callDurationSeconds.collectAsStateWithLifecycle()
+                                val retellAgentSource by medicationViewModel.retellManager.agentSource.collectAsStateWithLifecycle()
+                                val liveTranscriptions by medicationViewModel.liveTranscriptions.collectAsStateWithLifecycle()
+                                val connectionLatencyMs by medicationViewModel.connectionLatencyMs.collectAsStateWithLifecycle()
+                                val connectionQuality by medicationViewModel.connectionQuality.collectAsStateWithLifecycle()
+                                val isSpeaking by medicationViewModel.isSpeaking.collectAsStateWithLifecycle()
+                                val isVoiceAudioEnabled by medicationViewModel.isVoiceAudioEnabled.collectAsStateWithLifecycle()
+                                val micAmplitude by medicationViewModel.micAmplitude.collectAsStateWithLifecycle()
+                                val waveformAmplitudes by medicationViewModel.waveformAmplitudes.collectAsStateWithLifecycle()
+
                                 AsistenteVirtualScreen(
                                     patientName = userProfile?.fullName.orEmpty(),
                                     // Sin contacto registrado, el botón llama a la línea de emergencias 123.
@@ -262,10 +285,57 @@ class MainActivity : ComponentActivity() {
                                         ?: com.example.ai.AsistenteMedicacionManager.LINEA_EMERGENCIAS,
                                     messages = aiMessages,
                                     isLoading = isAiLoading,
+                                    retellCallState = retellCallState,
+                                    retellWebCallUrl = retellWebCallUrl,
+                                    isRetellConfigured = isRetellConfigured,
+                                    retellApiKey = retellApiKey,
+                                    retellAgentId = retellAgentId,
+                                    isSpeakerphoneOn = isSpeakerphoneOn,
+                                    isMicMuted = isMicMuted,
+                                    callDurationSeconds = callDurationSeconds,
+                                    retellAgentSource = retellAgentSource,
+                                    liveTranscriptions = liveTranscriptions,
+                                    connectionLatencyMs = connectionLatencyMs,
+                                    connectionQuality = connectionQuality,
+                                    isSpeaking = isSpeaking,
+                                    isVoiceAudioEnabled = isVoiceAudioEnabled,
+                                    micAmplitude = micAmplitude,
+                                    waveformAmplitudes = waveformAmplitudes,
+                                    onStartRetellCall = {
+                                        medicationViewModel.iniciarLlamadaRetell()
+                                    },
+                                    onEndRetellCall = {
+                                        medicationViewModel.finalizarLlamadaRetell()
+                                    },
+                                    onToggleSpeakerphone = {
+                                        medicationViewModel.toggleSpeakerphone()
+                                    },
+                                    onToggleMicMute = {
+                                        medicationViewModel.toggleMicMute()
+                                    },
+                                    onToggleVoiceAudio = {
+                                        medicationViewModel.toggleVoiceAudio()
+                                    },
+                                    onSpeakMessage = { text ->
+                                        medicationViewModel.speakAssistantResponse(text)
+                                    },
+                                    onStopSpeaking = {
+                                        medicationViewModel.stopSpeaking()
+                                    },
+                                    onResetRetellToEnv = {
+                                        medicationViewModel.restablecerCredencialesEntorno()
+                                    },
+                                    onSaveRetellCredentials = { key, agent ->
+                                        medicationViewModel.guardarCredencialesRetell(key, agent)
+                                    },
+                                    onTestRetellConnection = { callback ->
+                                        medicationViewModel.probarConexionRetell(callback)
+                                    },
                                     onSendMessage = { query ->
                                         medicationViewModel.askAssistant(query)
                                     },
                                     onBack = {
+                                        medicationViewModel.finalizarLlamadaRetell()
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     }
                                 )

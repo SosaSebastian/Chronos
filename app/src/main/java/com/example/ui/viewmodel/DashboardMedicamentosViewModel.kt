@@ -36,7 +36,9 @@ data class MedicamentoUiModel(
     val activo: Boolean = true,
     val isTakenToday: Boolean = false,
     val proximaTomaTexto: String = "",
-    val estadoUrgencia: EstadoToma = EstadoToma.NORMAL
+    val estadoUrgencia: EstadoToma = EstadoToma.NORMAL,
+    val diasSemana: String = "ALL",
+    val esTodosLosDias: Boolean = true
 )
 
 enum class EstadoToma {
@@ -364,7 +366,9 @@ class DashboardMedicamentosViewModel(
             activo = med.activo,
             isTakenToday = false,
             proximaTomaTexto = calcularTextoProximaToma(med.horaToma, false),
-            estadoUrgencia = calcularEstadoUrgencia(med.horaToma, false)
+            estadoUrgencia = calcularEstadoUrgencia(med.horaToma, false),
+            diasSemana = med.diasSemana,
+            esTodosLosDias = med.esTodosLosDias
         )
     }
 
@@ -383,7 +387,9 @@ class DashboardMedicamentosViewModel(
             activo = true,
             isTakenToday = entity.isTakenToday,
             proximaTomaTexto = calcularTextoProximaToma(entity.scheduleTime, entity.isTakenToday),
-            estadoUrgencia = calcularEstadoUrgencia(entity.scheduleTime, entity.isTakenToday)
+            estadoUrgencia = calcularEstadoUrgencia(entity.scheduleTime, entity.isTakenToday),
+            diasSemana = entity.daysOfWeek,
+            esTodosLosDias = entity.isEveryday
         )
     }
 

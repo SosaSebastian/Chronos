@@ -57,7 +57,9 @@ data class CalendarMedicationDose(
     val instructions: String,
     val requiresFood: Boolean,
     val isTaken: Boolean,
-    val timeOfDay: TimeOfDayCategory
+    val timeOfDay: TimeOfDayCategory,
+    val daysOfWeek: String = "ALL",
+    val isEveryday: Boolean = true
 )
 
 /**

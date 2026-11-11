@@ -50,6 +50,8 @@ data class Medicamento(
     val categoria: String = "",
     val indicaciones: String = "",
     val activo: Boolean = true,
+    val diasSemana: String = "ALL",
+    val esTodosLosDias: Boolean = true,
     @ServerTimestamp
     val creadoEn: Date? = null
 )

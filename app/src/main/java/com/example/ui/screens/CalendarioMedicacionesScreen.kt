@@ -829,7 +829,7 @@ fun DoseFilterChipsRow(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        CalendarDoseFilter.values().forEach { filter ->
+        CalendarDoseFilter.entries.forEach { filter ->
             val count = when (filter) {
                 CalendarDoseFilter.TODAS -> totalCount
                 CalendarDoseFilter.PENDIENTES -> pendingCount
@@ -961,6 +961,21 @@ fun MedicationDoseCalendarCard(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = TextLightBlue,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (dose.isEveryday || dose.daysOfWeek == "ALL") "Todos los días" else "Días: ${dose.daysOfWeek}",
+                            color = TextLightBlue,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
 
                 // Hora programada

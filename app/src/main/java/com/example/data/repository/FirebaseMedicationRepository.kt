@@ -185,6 +185,8 @@ class FirebaseMedicationRepository(
                 "categoria" to medicamento.categoria.trim(),
                 "indicaciones" to medicamento.indicaciones.trim(),
                 "activo" to medicamento.activo,
+                "diasSemana" to medicamento.diasSemana,
+                "esTodosLosDias" to medicamento.esTodosLosDias,
                 "creadoEn" to FieldValue.serverTimestamp()
             )
 
@@ -330,6 +332,8 @@ class FirebaseMedicationRepository(
                 "horaToma" to medicamento.horaToma.trim(),
                 "categoria" to medicamento.categoria.trim(),
                 "indicaciones" to medicamento.indicaciones.trim(),
+                "diasSemana" to medicamento.diasSemana,
+                "esTodosLosDias" to medicamento.esTodosLosDias,
                 "actualizadoEn" to FieldValue.serverTimestamp()
             )
 

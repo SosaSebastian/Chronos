@@ -39,8 +39,18 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     val firebaseRepo = FirebaseMedicationRepository()
     val authManager = com.example.auth.FirebaseAuthManager()
 
-    // Asistente Virtual Inteligente (Modo Texto)
+    // Asistente Virtual Inteligente con soporte para Voz Externa (Retell AI) y Audio Local
     val asistenteManager = com.example.ai.AsistenteMedicacionManager(application)
+    val retellManager = com.example.ai.retell.RetellAiManager(application)
+    val voiceResponseManager = com.example.ai.voice.VoiceResponseManager(application)
+
+    val isSpeaking: StateFlow<Boolean> = voiceResponseManager.isSpeaking
+    val isVoiceAudioEnabled: StateFlow<Boolean> = voiceResponseManager.isVoiceAudioEnabled
+    val micAmplitude: StateFlow<Float> = retellManager.micAmplitude
+    val waveformAmplitudes: StateFlow<List<Float>> = retellManager.waveformAmplitudes
+    val liveTranscriptions: StateFlow<List<com.example.ai.retell.RetellUtterance>> = retellManager.liveTranscriptions
+    val connectionLatencyMs: StateFlow<Long> = retellManager.connectionLatencyMs
+    val connectionQuality: StateFlow<com.example.ai.retell.RetellConnectionQuality> = retellManager.connectionQuality
 
     val currentScreen = MutableStateFlow(AppScreen.LOGIN)
 
@@ -256,6 +266,8 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         instructions: String,
         category: String,
         requiresFood: Boolean,
+        daysOfWeek: String = "ALL",
+        isEveryday: Boolean = true,
         // false cuando el medicamento ya se guardó en Firestore (pantalla de registro): evita guardarlo dos veces.
         sincronizarFirestore: Boolean = true
     ) {
@@ -268,7 +280,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 instructions = instructions,
                 category = category,
                 isTakenToday = false,
-                requiresFood = requiresFood
+                requiresFood = requiresFood,
+                daysOfWeek = daysOfWeek,
+                isEveryday = isEveryday
             )
             val insertedId = repository.addMedication(entity)
             // Programar alarma exacta en el sistema AlarmManager
@@ -285,7 +299,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                     horaToma = scheduleTime,
                     categoria = category,
                     indicaciones = instructions,
-                    activo = true
+                    activo = true,
+                    diasSemana = daysOfWeek,
+                    esTodosLosDias = isEveryday
                 )
                 launch {
                     firebaseRepo.addMedicamento(uid, firestoreMed)
@@ -307,7 +323,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         dosis: String,
         horaToma: String,
         categoria: String,
-        indicaciones: String
+        indicaciones: String,
+        diasSemana: String = "ALL",
+        esTodosLosDias: Boolean = true
     ) {
         viewModelScope.launch {
             val local = repository.getAllMedicationsList().firstOrNull {
@@ -325,7 +343,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 dosage = dosis,
                 scheduleTime = horaToma,
                 category = categoria,
-                instructions = indicaciones
+                instructions = indicaciones,
+                daysOfWeek = diasSemana,
+                isEveryday = esTodosLosDias
             )
             repository.updateMedication(actualizado)
             MedicationAlarmScheduler.scheduleMedicationAlarm(getApplication(), actualizado)
@@ -381,7 +401,6 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
 
     fun askAssistant(query: String) {
         if (query.isBlank() || _isAiLoading.value) return
-        // Conversación previa (sin la pregunta nueva) para que el asistente entienda preguntas de seguimiento.
         val historialPrevio = _aiMessages.value
         val userMsg = com.example.ai.MensajeChat(
             texto = query,
@@ -392,26 +411,142 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             _isAiLoading.value = true
             try {
-                // Sin datos inventados: si el perfil no ha cargado, el asistente usa la línea de emergencias 123.
                 val currentPatientName = userProfile.value?.fullName.orEmpty()
                 val currentEmergencyPhone = userProfile.value?.emergencyContactPhone.orEmpty()
-                val respuesta = asistenteManager.responderConsulta(
-                    preguntaUsuario = query,
-                    medicamentosActivos = medications.value,
-                    nombrePaciente = currentPatientName,
-                    telefonoEmergencia = currentEmergencyPhone,
-                    historial = historialPrevio
-                )
+                val currentDoctor = userProfile.value?.doctorName.orEmpty()
+
+                var respuestaTexto: String? = null
+
+                // Si Retell AI está configurado, consultar al agente de voz directamente
+                if (retellManager.isConfigured.value) {
+                    val retellChatRes = retellManager.enviarMensajeChat(
+                        mensajeUsuario = query,
+                        pacienteNombre = currentPatientName,
+                        medicamentos = medications.value,
+                        contactoEmergencia = currentEmergencyPhone,
+                        doctorTratante = currentDoctor
+                    )
+                    retellChatRes.onSuccess { text ->
+                        respuestaTexto = text
+                    }
+                }
+
+                val respuesta = if (!respuestaTexto.isNullOrBlank()) {
+                    com.example.ai.MensajeChat(
+                        texto = respuestaTexto!!,
+                        esDelUsuario = false
+                    )
+                } else {
+                    asistenteManager.responderConsulta(
+                        preguntaUsuario = query,
+                        medicamentosActivos = medications.value,
+                        nombrePaciente = currentPatientName,
+                        telefonoEmergencia = currentEmergencyPhone,
+                        historial = historialPrevio
+                    )
+                }
                 _aiMessages.value = _aiMessages.value + respuesta
+
+                // Reproducir respuesta por voz si está habilitada
+                if (isVoiceAudioEnabled.value) {
+                    voiceResponseManager.speak(respuesta.texto)
+                }
             } catch (_: Exception) {
                 val fallbackMsg = com.example.ai.MensajeChat(
                     texto = "Disculpa, tuve un pequeño inconveniente al consultar la información. Por favor, revisa tu lista de medicamentos o comunícate con tu médico de confianza.",
                     esDelUsuario = false
                 )
                 _aiMessages.value = _aiMessages.value + fallbackMsg
+                if (isVoiceAudioEnabled.value) {
+                    voiceResponseManager.speak(fallbackMsg.texto)
+                }
             } finally {
                 _isAiLoading.value = false
             }
         }
+    }
+
+    // =========================================================================
+    // MÉTODOS DE INTEGRACIÓN RETELL AI Y FORMATO DE VOZ
+    // =========================================================================
+
+    fun toggleSpeakerphone(): Boolean = retellManager.toggleSpeakerphone()
+
+    fun toggleMicMute(): Boolean = retellManager.toggleMicMute()
+
+    fun toggleVoiceAudio(): Boolean = voiceResponseManager.toggleVoiceAudio()
+
+    fun setVoiceAudioEnabled(enabled: Boolean) = voiceResponseManager.setVoiceAudioEnabled(enabled)
+
+    fun speakAssistantResponse(texto: String) = voiceResponseManager.speak(texto)
+
+    fun stopSpeaking() = voiceResponseManager.stop()
+
+    fun restablecerCredencialesEntorno() = retellManager.restablecerCredencialesEntorno()
+
+    fun guardarCredencialesRetell(apiKey: String, agentId: String) =
+        retellManager.guardarCredenciales(apiKey, agentId)
+
+    fun probarConexionRetell(onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val result = retellManager.probarConexion()
+            result.onSuccess { msg -> onResult(true, msg) }
+                .onFailure { ex -> onResult(false, ex.localizedMessage ?: "Error de conexión con Retell AI.") }
+        }
+    }
+
+    fun iniciarLlamadaRetell(
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val patientName = userProfile.value?.fullName.orEmpty().ifBlank { "Paciente" }
+            val emergencyPhone = userProfile.value?.emergencyContactPhone.orEmpty().ifBlank { "+57 310 456 7890" }
+            val doctor = userProfile.value?.doctorName.orEmpty()
+
+            val result = retellManager.iniciarLlamadaWeb(
+                pacienteNombre = patientName,
+                medicamentos = medications.value,
+                contactoEmergencia = emergencyPhone,
+                doctorTratante = doctor
+            )
+
+            result.onSuccess { callResponse ->
+                val webCallUrl = "https://web-call.retellai.com/?access_token=${callResponse.accessToken}"
+                onSuccess(webCallUrl)
+            }.onFailure { ex ->
+                onError(ex.localizedMessage ?: "No se pudo iniciar la llamada con Retell AI.")
+            }
+        }
+    }
+
+    fun finalizarLlamadaRetell() {
+        val lastCallId = retellManager.activeCallId.value
+        retellManager.finalizarLlamada()
+
+        if (!lastCallId.isNullOrBlank() && retellManager.isConfigured.value) {
+            viewModelScope.launch {
+                try {
+                    val transRes = retellManager.obtenerTranscripcionLlamada(lastCallId)
+                    transRes.onSuccess { utterances ->
+                        if (utterances.isNotEmpty()) {
+                            val newChatMsgs = utterances.map { u ->
+                                com.example.ai.MensajeChat(
+                                    texto = u.content,
+                                    esDelUsuario = u.role.equals("user", ignoreCase = true)
+                                )
+                            }
+                            _aiMessages.value = _aiMessages.value + newChatMsgs
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        voiceResponseManager.shutdown()
+        retellManager.audioController.resetAudio()
     }
 }

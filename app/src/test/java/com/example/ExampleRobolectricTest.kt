@@ -423,5 +423,157 @@ class ExampleRobolectricTest {
 
         testDb.close()
     }
+
+    // CASO DE USO 18: Registro con Horario Específico y Días Específicos de la Semana (Persistencia en Room)
+    @Test
+    fun testCase18_frequentAndSpecificSchedulesAndDayOfWeekPersistence() = kotlinx.coroutines.runBlocking {
+        val testDb = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        val testRepo = MedicationRepository(testDb.medicationDao(), testDb.userDao())
+
+        // Medicamento con horario específico ("09:30 AM") y días específicos ("Lunes,Miércoles,Viernes")
+        val medDiasEspecificos = MedicationEntity(
+            name = "Metotrexato",
+            dosage = "10 mg",
+            scheduleTime = "09:30 AM",
+            category = "Inmunología",
+            instructions = "Tomar en ayunas con abundante agua",
+            daysOfWeek = "Lunes,Miércoles,Viernes",
+            isEveryday = false
+        )
+        val id1 = testRepo.addMedication(medDiasEspecificos)
+        assertTrue(id1 > 0)
+
+        // Medicamento con horario frecuente ("08:00 AM") y todos los días
+        val medTodosLosDias = MedicationEntity(
+            name = "Losartán",
+            dosage = "50 mg",
+            scheduleTime = "08:00 AM",
+            category = "Presión",
+            daysOfWeek = "ALL",
+            isEveryday = true
+        )
+        val id2 = testRepo.addMedication(medTodosLosDias)
+        assertTrue(id2 > 0)
+
+        val meds = testRepo.medications.first()
+        assertEquals(2, meds.size)
+
+        val recuperado1 = meds.first { it.id == id1 }
+        assertEquals("09:30 AM", recuperado1.scheduleTime)
+        assertFalse(recuperado1.isEveryday)
+        assertEquals("Lunes,Miércoles,Viernes", recuperado1.daysOfWeek)
+
+        val recuperado2 = meds.first { it.id == id2 }
+        assertEquals("08:00 AM", recuperado2.scheduleTime)
+        assertTrue(recuperado2.isEveryday)
+        assertEquals("ALL", recuperado2.daysOfWeek)
+
+        testDb.close()
+    }
+
+    // CASO DE USO 19: Sincronización del Calendario con Días Específicos vs Todos los Días
+    @Test
+    fun testCase19_calendarSynchronizationWithDayOfWeekFiltering() {
+        val medLunesMiercolesViernes = MedicationEntity(
+            id = 1,
+            name = "Furosemida",
+            dosage = "40 mg",
+            scheduleTime = "07:30 AM",
+            daysOfWeek = "Lunes,Miércoles,Viernes",
+            isEveryday = false
+        )
+
+        val medDiario = MedicationEntity(
+            id = 2,
+            name = "Levotiroxina",
+            dosage = "75 mcg",
+            scheduleTime = "06:30 AM",
+            daysOfWeek = "ALL",
+            isEveryday = true
+        )
+
+        // Simular un Lunes (Monday)
+        val lunesCal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
+        }
+        assertTrue("El medicamento de L, M, V debe aplicar en Lunes", medLunesMiercolesViernes.appliesToCalendarDay(lunesCal))
+        assertTrue("El medicamento diario debe aplicar en Lunes", medDiario.appliesToCalendarDay(lunesCal))
+
+        // Simular un Martes (Tuesday)
+        val martesCal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.TUESDAY)
+        }
+        assertFalse("El medicamento de L, M, V NO debe aplicar en Martes", medLunesMiercolesViernes.appliesToCalendarDay(martesCal))
+        assertTrue("El medicamento diario sí debe aplicar en Martes", medDiario.appliesToCalendarDay(martesCal))
+
+        // Simular un Miércoles (Wednesday)
+        val miercolesCal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.WEDNESDAY)
+        }
+        assertTrue("El medicamento de L, M, V debe aplicar en Miércoles", medLunesMiercolesViernes.appliesToCalendarDay(miercolesCal))
+
+        // Simular un Domingo (Sunday)
+        val domingoCal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.SUNDAY)
+        }
+        assertFalse("El medicamento de L, M, V NO debe aplicar en Domingo", medLunesMiercolesViernes.appliesToCalendarDay(domingoCal))
+        assertTrue("El medicamento diario sí aplica en Domingo", medDiario.appliesToCalendarDay(domingoCal))
+    }
+
+    // CASO DE USO 20: Lógica del Formulario de Registro para Horarios Específicos y Días de la Semana
+    @Test
+    fun testCase20_registrarMedicamentoViewModelDaySelectionAndValidation() {
+        if (com.google.firebase.FirebaseApp.getApps(context).isEmpty()) {
+            com.google.firebase.FirebaseApp.initializeApp(
+                context,
+                com.google.firebase.FirebaseOptions.Builder()
+                    .setApplicationId("1:000000000000:android:0000000000000000")
+                    .setProjectId("healthy-chronos-test")
+                    .setApiKey("AIzaSyA-pruebas-unitarias-sin-red-0000000")
+                    .build()
+            )
+        }
+        val vm = com.example.ui.viewmodel.RegistrarMedicamentoViewModel()
+        
+        // 1. Horario específico
+        vm.setHoraEspecifica("03:45 PM")
+        assertEquals("03:45 PM", vm.formState.value.horaToma)
+
+        // 2. Frecuencia todos los días
+        vm.setEsTodosLosDias(true)
+        assertTrue(vm.formState.value.isEveryday)
+        assertEquals("ALL", vm.formState.value.diasSemanaFormateados)
+
+        // 3. Selección de días laborables
+        vm.selectDiasLaborables()
+        assertFalse(vm.formState.value.isEveryday)
+        assertEquals(5, vm.formState.value.selectedDays.size)
+        assertTrue(vm.formState.value.selectedDays.contains("Lunes"))
+        assertFalse(vm.formState.value.selectedDays.contains("Domingo"))
+
+        // 4. Alternar día (añadir Sábado)
+        vm.toggleDiaSemana("Sábado")
+        assertTrue(vm.formState.value.selectedDays.contains("Sábado"))
+
+        // 5. Cargar para edición preservando días
+        vm.cargarParaEditar(
+            id = "med-edit-1",
+            nombre = "Omeprazol",
+            dosis = "20 mg",
+            horaToma = "07:15 AM",
+            categoria = "General",
+            indicaciones = "Antes del desayuno",
+            diasSemana = "Martes,Jueves",
+            esTodosLosDias = false
+        )
+        assertEquals("07:15 AM", vm.formState.value.horaToma)
+        assertFalse(vm.formState.value.isEveryday)
+        assertTrue(vm.formState.value.selectedDays.contains("Martes"))
+        assertTrue(vm.formState.value.selectedDays.contains("Jueves"))
+        assertFalse(vm.formState.value.selectedDays.contains("Lunes"))
+    }
 }
+
 

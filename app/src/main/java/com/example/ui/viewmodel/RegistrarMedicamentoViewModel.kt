@@ -23,8 +23,13 @@ data class RegistrarMedicamentoFormState(
     val categoria: String = "Presión",
     val indicaciones: String = "Tomar con un vaso con agua después del desayuno",
     val activo: Boolean = true,
+    val isEveryday: Boolean = true,
+    val selectedDays: Set<String> = setOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"),
     val validationError: String? = null
-)
+) {
+    val diasSemanaFormateados: String
+        get() = if (isEveryday || selectedDays.size == 7) "ALL" else selectedDays.joinToString(",")
+}
 
 /**
  * Estados de la interfaz gráfica durante el guardado en Firestore.
@@ -54,8 +59,11 @@ class RegistrarMedicamentoViewModel(
     // Opciones rápidas de medicamentos frecuentes
     val medicamentosFrecuentes = listOf("Metformina", "Enalapril", "Calcio D3", "Aspirina")
 
-    // Opciones rápidas de horarios de toma
-    val horariosFrecuentes = listOf("07:00 AM", "08:00 AM", "01:00 PM", "08:00 PM")
+    // Opciones rápidas de horarios frecuentes de toma
+    val horariosFrecuentes = listOf("07:00 AM", "08:00 AM", "01:00 PM", "08:00 PM", "10:00 PM")
+
+    // Días de la semana para selección personalizada
+    val diasSemanaList = listOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
     // Opciones de categorías médicas
     val categoriasMedicas = listOf("Presión", "Diabetes", "Corazón", "Vitaminas")
@@ -87,14 +95,24 @@ class RegistrarMedicamentoViewModel(
         dosis: String,
         horaToma: String,
         categoria: String,
-        indicaciones: String
+        indicaciones: String,
+        diasSemana: String = "ALL",
+        esTodosLosDias: Boolean = true
     ) {
+        val isAll = esTodosLosDias || diasSemana.isBlank() || diasSemana.equals("ALL", ignoreCase = true) || diasSemana.equals("Todos los días", ignoreCase = true)
+        val parsedDays = if (isAll) {
+            setOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+        } else {
+            diasSemana.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        }
         val datos = RegistrarMedicamentoFormState(
             nombre = nombre,
             dosis = dosis,
             horaToma = horaToma,
             categoria = categoria,
-            indicaciones = indicaciones
+            indicaciones = indicaciones,
+            isEveryday = isAll,
+            selectedDays = if (parsedDays.isEmpty()) setOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo") else parsedDays
         )
         _medicamentoEnEdicionId.value = id
         datosOriginales = datos
@@ -108,7 +126,6 @@ class RegistrarMedicamentoViewModel(
     }
 
     fun selectMedicamentoFrecuente(nombre: String) {
-        // Asignación inteligente de sugerencias al tocar un chip frecuente
         val defaultDosis = when (nombre) {
             "Metformina" -> "850 mg"
             "Enalapril" -> "20 mg"
@@ -142,6 +159,58 @@ class RegistrarMedicamentoViewModel(
         clearErrorIfPresent()
     }
 
+    fun setHoraEspecifica(hora: String) {
+        _formState.value = _formState.value.copy(horaToma = hora, validationError = null)
+        clearErrorIfPresent()
+    }
+
+    fun setEsTodosLosDias(esTodos: Boolean) {
+        _formState.value = _formState.value.copy(
+            isEveryday = esTodos,
+            selectedDays = if (esTodos) setOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo") else _formState.value.selectedDays,
+            validationError = null
+        )
+        clearErrorIfPresent()
+    }
+
+    fun toggleDiaSemana(dia: String) {
+        val currentDays = if (_formState.value.isEveryday) {
+            setOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo").toMutableSet().apply {
+                remove(dia)
+            }
+        } else {
+            _formState.value.selectedDays.toMutableSet().apply {
+                if (contains(dia)) remove(dia) else add(dia)
+            }
+        }
+
+        val allSelected = currentDays.size == 7
+        _formState.value = _formState.value.copy(
+            isEveryday = allSelected,
+            selectedDays = currentDays,
+            validationError = null
+        )
+        clearErrorIfPresent()
+    }
+
+    fun selectDiasLaborables() {
+        _formState.value = _formState.value.copy(
+            isEveryday = false,
+            selectedDays = setOf("Lunes", "Martes", "Miércoles", "Jueves", "Viernes"),
+            validationError = null
+        )
+        clearErrorIfPresent()
+    }
+
+    fun selectFinDeSemana() {
+        _formState.value = _formState.value.copy(
+            isEveryday = false,
+            selectedDays = setOf("Sábado", "Domingo"),
+            validationError = null
+        )
+        clearErrorIfPresent()
+    }
+
     fun selectCategoria(categoria: String) {
         _formState.value = _formState.value.copy(categoria = categoria, validationError = null)
         clearErrorIfPresent()
@@ -163,13 +232,13 @@ class RegistrarMedicamentoViewModel(
     private fun validateForm(): String? {
         val s = _formState.value
         if (s.nombre.trim().isBlank()) return "El nombre del medicamento es obligatorio (*)."
-        // CP01: una dosis vacía, sin cantidad, cero o negativa se rechaza sin cerrar la app.
         try {
             ValidadorDosis.validar(s.dosis)
         } catch (e: DosisInvalidaException) {
             return e.message
         }
         if (s.horaToma.trim().isBlank()) return "La hora de la toma es obligatoria (*)."
+        if (!s.isEveryday && s.selectedDays.isEmpty()) return "Selecciona al menos un día de la semana para la toma (*)."
         if (s.categoria.trim().isBlank()) return "Selecciona una categoría médica (*)."
         return null
     }
@@ -198,14 +267,15 @@ class RegistrarMedicamentoViewModel(
             horaToma = s.horaToma.trim(),
             categoria = s.categoria.trim(),
             indicaciones = s.indicaciones.trim(),
-            activo = s.activo
+            activo = s.activo,
+            diasSemana = s.diasSemanaFormateados,
+            esTodosLosDias = s.isEveryday || s.selectedDays.size == 7
         )
 
         _uiState.value = RegistrarMedicamentoUiState.Loading
 
         val idEdicion = _medicamentoEnEdicionId.value
         if (idEdicion != null) {
-            // Edición: se actualiza el documento existente en lugar de crear uno nuevo.
             viewModelScope.launch {
                 when (val result = repository.updateMedicamento(userId, medicamento.copy(id = idEdicion))) {
                     is Resource.Success -> {
