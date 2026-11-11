@@ -60,6 +60,48 @@ class RegistrarMedicamentoViewModel(
     // Opciones de categorías médicas
     val categoriasMedicas = listOf("Presión", "Diabetes", "Corazón", "Vitaminas")
 
+    // ── Modo edición ──────────────────────────────────────────────────────────
+    // Id de Firestore del medicamento que se está editando; null = registro nuevo.
+    private val _medicamentoEnEdicionId = MutableStateFlow<String?>(null)
+    val medicamentoEnEdicionId: StateFlow<String?> = _medicamentoEnEdicionId.asStateFlow()
+
+    /** Datos del medicamento antes de editarlo; sirven para ubicar su copia local y su alarma. */
+    var datosOriginales: RegistrarMedicamentoFormState? = null
+        private set
+
+    val enModoEdicion: Boolean
+        get() = _medicamentoEnEdicionId.value != null
+
+    /** Abre el formulario vacío para registrar un medicamento nuevo. */
+    fun nuevoRegistro() {
+        _medicamentoEnEdicionId.value = null
+        datosOriginales = null
+        _formState.value = RegistrarMedicamentoFormState()
+        _uiState.value = RegistrarMedicamentoUiState.Idle
+    }
+
+    /** Llena el formulario con un medicamento existente para editarlo. */
+    fun cargarParaEditar(
+        id: String,
+        nombre: String,
+        dosis: String,
+        horaToma: String,
+        categoria: String,
+        indicaciones: String
+    ) {
+        val datos = RegistrarMedicamentoFormState(
+            nombre = nombre,
+            dosis = dosis,
+            horaToma = horaToma,
+            categoria = categoria,
+            indicaciones = indicaciones
+        )
+        _medicamentoEnEdicionId.value = id
+        datosOriginales = datos
+        _formState.value = datos
+        _uiState.value = RegistrarMedicamentoUiState.Idle
+    }
+
     fun updateNombre(value: String) {
         _formState.value = _formState.value.copy(nombre = value, validationError = null)
         clearErrorIfPresent()
@@ -160,6 +202,22 @@ class RegistrarMedicamentoViewModel(
         )
 
         _uiState.value = RegistrarMedicamentoUiState.Loading
+
+        val idEdicion = _medicamentoEnEdicionId.value
+        if (idEdicion != null) {
+            // Edición: se actualiza el documento existente en lugar de crear uno nuevo.
+            viewModelScope.launch {
+                when (val result = repository.updateMedicamento(userId, medicamento.copy(id = idEdicion))) {
+                    is Resource.Success -> {
+                        _uiState.value = RegistrarMedicamentoUiState.Success(idEdicion)
+                        onSuccess(idEdicion)
+                    }
+                    is Resource.Error -> _uiState.value = RegistrarMedicamentoUiState.Error(result.message)
+                    is Resource.Loading -> _uiState.value = RegistrarMedicamentoUiState.Loading
+                }
+            }
+            return
+        }
 
         viewModelScope.launch {
             val result = repository.addMedicamento(userId, medicamento)

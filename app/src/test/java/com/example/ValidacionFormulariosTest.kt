@@ -10,6 +10,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -109,6 +110,45 @@ class ValidacionFormulariosTest {
         vm.updateNombre("Losartán")
         vm.updateDosis("50 mg")
         assertEquals("No hay una sesión activa de usuario.", errorDeMedicamento(vm))
+    }
+
+    // ───────────────────────── Editar medicamento (CRUD: actualizar) ─────────────────────────
+
+    // VF10: al editar, el formulario se llena con los datos del medicamento y queda en modo edición.
+    @Test
+    fun vf10_cargarParaEditarLlenaElFormulario() {
+        val vm = RegistrarMedicamentoViewModel()
+        vm.cargarParaEditar("med-123", "Losartán", "50 mg", "08:00 AM", "Presión", "Después del desayuno")
+
+        assertTrue(vm.enModoEdicion)
+        assertEquals("med-123", vm.medicamentoEnEdicionId.value)
+        assertEquals("Losartán", vm.formState.value.nombre)
+        assertEquals("50 mg", vm.formState.value.dosis)
+        assertEquals("08:00 AM", vm.formState.value.horaToma)
+        assertEquals("Losartán", vm.datosOriginales?.nombre)
+    }
+
+    // VF11: la edición también valida los datos (no se puede dejar una dosis negativa).
+    @Test
+    fun vf11_editarConDosisInvalidaSeRechaza() {
+        val vm = RegistrarMedicamentoViewModel()
+        vm.cargarParaEditar("med-123", "Losartán", "50 mg", "08:00 AM", "Presión", "")
+        vm.updateDosis("-50 mg")
+        assertEquals("La dosis debe ser mayor que cero (*).", errorDeMedicamento(vm))
+        assertTrue("Sigue en modo edición tras el error", vm.enModoEdicion)
+    }
+
+    // VF12: "nuevo registro" sale del modo edición y limpia el formulario, aunque antes se haya guardado algo.
+    @Test
+    fun vf12_nuevoRegistroSaleDelModoEdicion() {
+        val vm = RegistrarMedicamentoViewModel()
+        vm.cargarParaEditar("med-123", "Losartán", "50 mg", "08:00 AM", "Presión", "")
+        vm.nuevoRegistro()
+
+        assertFalse(vm.enModoEdicion)
+        assertEquals(null, vm.datosOriginales)
+        assertEquals("", vm.formState.value.nombre)
+        assertEquals(RegistrarMedicamentoUiState.Idle, vm.uiState.value)
     }
 
     // ───────────────────────── Registro del paciente ─────────────────────────

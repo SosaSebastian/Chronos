@@ -306,6 +306,49 @@ class FirebaseMedicationRepository(
     }
 
     /**
+     * Actualiza los datos de un medicamento existente (la "U" del CRUD).
+     * Solo modifica los campos editables; conserva su id, su estado activo y su fecha de creación.
+     */
+    suspend fun updateMedicamento(userId: String, medicamento: Medicamento): Resource<Unit> {
+        return try {
+            if (userId.isBlank()) {
+                return Resource.Error("Sesión inválida: el ID de usuario no puede estar vacío.")
+            }
+            if (medicamento.id.isBlank()) {
+                return Resource.Error("No se encontró el medicamento que quieres editar.")
+            }
+            if (medicamento.nombre.isBlank()) {
+                return Resource.Error("Por favor ingresa el nombre del medicamento.")
+            }
+            if (medicamento.dosis.isBlank()) {
+                return Resource.Error("Por favor especifica la dosis (ej. 50 mg).")
+            }
+
+            val cambios = hashMapOf<String, Any>(
+                "nombre" to medicamento.nombre.trim(),
+                "dosis" to medicamento.dosis.trim(),
+                "horaToma" to medicamento.horaToma.trim(),
+                "categoria" to medicamento.categoria.trim(),
+                "indicaciones" to medicamento.indicaciones.trim(),
+                "actualizadoEn" to FieldValue.serverTimestamp()
+            )
+
+            firestore.collection(COLLECTION_USERS)
+                .document(userId)
+                .collection(SUBCOLLECTION_MEDICAMENTOS)
+                .document(medicamento.id)
+                .update(cambios)
+                .awaitTask()
+
+            Log.d(TAG, "Medicamento actualizado: ${medicamento.id} para el usuario $userId")
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al actualizar medicamento: ${e.message}", e)
+            Resource.Error(FirebaseErrorMapper.map(e), e)
+        }
+    }
+
+    /**
      * Elimina físicamente un medicamento de la subcolección en Firestore.
      */
     suspend fun deleteMedicamento(userId: String, medicamentoId: String): Resource<Unit> {

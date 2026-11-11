@@ -25,6 +25,7 @@ import com.example.ui.theme.HealtyChronosTheme
 import com.example.ui.theme.NavyDark
 import com.example.ui.viewmodel.AppScreen
 import com.example.ui.viewmodel.MedicationViewModel
+import com.example.ui.viewmodel.RegistrarMedicamentoViewModel
 import com.example.util.configureAppCheck
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +37,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val medicationViewModel: MedicationViewModel = viewModel()
+            // Un solo formulario de medicamentos para registrar y editar.
+            val registrarMedicamentoViewModel: RegistrarMedicamentoViewModel = viewModel()
             val currentScreen by medicationViewModel.currentScreen.collectAsStateWithLifecycle()
             val currentFirebaseUser by medicationViewModel.currentFirebaseUser.collectAsStateWithLifecycle()
             val authLoading by medicationViewModel.authLoading.collectAsStateWithLifecycle()
@@ -124,6 +127,7 @@ class MainActivity : ComponentActivity() {
                                     patientName = userProfile?.fullName ?: "Sr. Sebastian",
                                     emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
                                     onNavigateToRegistrar = {
+                                        registrarMedicamentoViewModel.nuevoRegistro()
                                         medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     },
                                     onNavigateToCalendario = {
@@ -137,6 +141,17 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onNavigateToAsistente = {
                                         medicationViewModel.navigateTo(AppScreen.AI_ASSISTANT)
+                                    },
+                                    onEditarMedicamento = { med ->
+                                        registrarMedicamentoViewModel.cargarParaEditar(
+                                            id = med.id,
+                                            nombre = med.nombre,
+                                            dosis = med.dosis,
+                                            horaToma = med.horaToma,
+                                            categoria = med.categoria,
+                                            indicaciones = med.indicaciones
+                                        )
+                                        medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     }
                                 )
                             }
@@ -155,6 +170,7 @@ class MainActivity : ComponentActivity() {
                                         medicationViewModel.navigateTo(AppScreen.PROFILE)
                                     },
                                     onNavigateToRegistrar = {
+                                        registrarMedicamentoViewModel.nuevoRegistro()
                                         medicationViewModel.navigateTo(AppScreen.ADD_MEDICATION)
                                     }
                                 )
@@ -182,19 +198,36 @@ class MainActivity : ComponentActivity() {
 
                             AppScreen.ADD_MEDICATION -> {
                                 RegistrarMedicamentoScreen(
+                                    viewModel = registrarMedicamentoViewModel,
                                     onMedicamentoGuardado = { _ ->
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)
                                     },
                                     onSyncLocal = { name, dosage, scheduleTime, category, instructions ->
-                                        medicationViewModel.addMedication(
-                                            name = name,
-                                            dosage = dosage,
-                                            scheduleTime = scheduleTime,
-                                            frequencyHours = 12,
-                                            instructions = instructions,
-                                            category = category,
-                                            requiresFood = true
-                                        )
+                                        val original = registrarMedicamentoViewModel.datosOriginales
+                                        if (registrarMedicamentoViewModel.enModoEdicion && original != null) {
+                                            // Edición: ya se actualizó en Firestore; se ajusta la copia local y la alarma.
+                                            medicationViewModel.actualizarMedicamentoLocal(
+                                                nombreAnterior = original.nombre,
+                                                horaAnterior = original.horaToma,
+                                                nombre = name,
+                                                dosis = dosage,
+                                                horaToma = scheduleTime,
+                                                categoria = category,
+                                                indicaciones = instructions
+                                            )
+                                        } else {
+                                            // Registro nuevo: ya quedó en Firestore; aquí solo se guarda local y se programa la alarma.
+                                            medicationViewModel.addMedication(
+                                                name = name,
+                                                dosage = dosage,
+                                                scheduleTime = scheduleTime,
+                                                frequencyHours = 24,
+                                                instructions = instructions,
+                                                category = category,
+                                                requiresFood = true,
+                                                sincronizarFirestore = false
+                                            )
+                                        }
                                     },
                                     onVolver = {
                                         medicationViewModel.navigateTo(AppScreen.DASHBOARD)

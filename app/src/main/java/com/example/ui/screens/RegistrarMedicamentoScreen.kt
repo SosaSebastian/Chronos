@@ -48,6 +48,8 @@ fun RegistrarMedicamentoScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val isLoading = uiState is RegistrarMedicamentoUiState.Loading
+    val idEdicion by viewModel.medicamentoEnEdicionId.collectAsStateWithLifecycle()
+    val enEdicion = idEdicion != null
 
     // Notificar éxito al guardar y sincronizar
     LaunchedEffect(uiState) {
@@ -74,7 +76,7 @@ fun RegistrarMedicamentoScreen(
                 ),
                 title = {
                     Text(
-                        text = "Registrar Dosis y Horario",
+                        text = if (enEdicion) "Editar Medicamento" else "Registrar Dosis y Horario",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -108,13 +110,13 @@ fun RegistrarMedicamentoScreen(
 
             // Encabezado
             Text(
-                text = "Registrar Dosis y Horario",
+                text = if (enEdicion) "Editar Medicamento" else "Registrar Dosis y Horario",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextWhite
             )
             Text(
-                text = "Llena los datos para programar tus recordatorios",
+                text = if (enEdicion) "Cambia los datos y guarda; el recordatorio se ajusta solo" else "Llena los datos para programar tus recordatorios",
                 fontSize = 15.sp,
                 color = TextLightBlue,
                 modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
@@ -538,7 +540,7 @@ fun RegistrarMedicamentoScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Guardar Medicamento",
+                        text = if (enEdicion) "Guardar Cambios" else "Guardar Medicamento",
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )

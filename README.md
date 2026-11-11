@@ -56,7 +56,7 @@ La adherencia a tratamientos crónicos ronda el 50 % (OMS). Los pacientes, en es
 | RF02 | Inicio y cierre de sesión con correo y contraseña. |
 | RF03 | Registrar un medicamento (nombre, dosis, hora, categoría, indicaciones). |
 | RF04 | Listar y filtrar los medicamentos por categoría y estado de toma. |
-| RF05 | Activar / desactivar y eliminar medicamentos. |
+| RF05 | Editar, activar / desactivar y eliminar medicamentos. |
 | RF06 | Programar alarmas por cada toma y reprogramarlas tras reiniciar el teléfono. |
 | RF07 | Marcar una dosis como tomada o posponerla desde la notificación. |
 | RF08 | Ver calendario e historial de cumplimiento con % de adherencia. |
@@ -184,8 +184,8 @@ firestore.rules                     # Reglas de seguridad de Firestore
 
    `10.0.2.2` es el computador visto desde el emulador. En un celular físico se usa la IP del computador.
 
-4. **Keystore de depuración**
-   El build de debug firma con `debug.keystore` en la raíz del proyecto. Si no existe, generarlo con:
+4. **Keystore de depuración (opcional)**
+   Si existe `debug.keystore` en la raíz del proyecto, el build de debug firma con él; si no, Android Studio usa su llave de depuración por defecto. Para generarlo:
 
    ```bash
    keytool -genkey -v -keystore debug.keystore -storepass android \
@@ -222,6 +222,7 @@ users/{uid}
 | Consultar perfil | `getPacienteProfile` |
 | Crear medicamento | `addMedicamento` |
 | Consultar medicamentos | `getActiveMedicamentos`, `observeActiveMedicamentos` (tiempo real) |
+| Actualizar medicamento | `updateMedicamento` (nombre, dosis, hora, categoría e indicaciones) |
 | Actualizar estado | `toggleMedicamentoStatus` |
 | Eliminar medicamento | `deleteMedicamento` |
 
@@ -314,8 +315,10 @@ A la hora de la toma llega una notificación con dos botones:
 - **Calendario:** muestra las tomas por día y su estado.
 - **Cumplimiento:** muestra el porcentaje de adherencia y permite **Exportar y Compartir PDF** para compartirlo con el médico.
 
-### Activar, desactivar o eliminar un medicamento
-Desde el panel principal, cada tarjeta de medicamento tiene opciones para pausarlo o **eliminarlo**.
+### Editar o eliminar un medicamento
+En el panel principal, cada tarjeta tiene dos íconos:
+- **Lápiz (Editar medicamento):** abre el formulario con los datos actuales. Se cambian y se toca **Guardar Cambios**; el recordatorio se ajusta a la hora nueva.
+- **Papelera (Eliminar medicamento):** pide confirmación y lo borra de la app y de Firestore.
 
 ### Consultar al asistente IA (por texto)
 1. Tocar **Asistente IA** en el panel principal.
@@ -333,7 +336,6 @@ En **Mi Perfil** se ven los datos del paciente, el botón para **llamar al conta
 - Configurar Firebase (Auth, Firestore, App Check y AI Logic) de forma segura.
 
 **Mejoras futuras**
-- Pantalla para editar todos los datos de un medicamento.
 - Vinculación de cuidadores, para que el aviso de dosis omitida también les llegue a ellos.
 - Registro de citas médicas para que el asistente también las organice.
 - Pruebas instrumentadas de interfaz con Compose Testing.

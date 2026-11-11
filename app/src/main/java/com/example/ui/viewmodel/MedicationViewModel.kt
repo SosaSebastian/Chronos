@@ -255,7 +255,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         frequencyHours: Int,
         instructions: String,
         category: String,
-        requiresFood: Boolean
+        requiresFood: Boolean,
+        // false cuando el medicamento ya se guardó en Firestore (pantalla de registro): evita guardarlo dos veces.
+        sincronizarFirestore: Boolean = true
     ) {
         viewModelScope.launch {
             val entity = MedicationEntity(
@@ -276,7 +278,7 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
             )
 
             // Persistencia en subcolección Cloud Firestore users/{userId}/medicamentos
-            authManager.currentUser?.uid?.let { uid ->
+            if (sincronizarFirestore) authManager.currentUser?.uid?.let { uid ->
                 val firestoreMed = Medicamento(
                     nombre = name,
                     dosis = dosage,
@@ -290,6 +292,43 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }
 
+            currentScreen.value = AppScreen.DASHBOARD
+        }
+    }
+
+    /**
+     * Después de editar un medicamento en Firestore: actualiza su copia local en Room y
+     * reprograma su alarma con la hora nueva.
+     */
+    fun actualizarMedicamentoLocal(
+        nombreAnterior: String,
+        horaAnterior: String,
+        nombre: String,
+        dosis: String,
+        horaToma: String,
+        categoria: String,
+        indicaciones: String
+    ) {
+        viewModelScope.launch {
+            val local = repository.getAllMedicationsList().firstOrNull {
+                it.name == nombreAnterior && it.scheduleTime == horaAnterior
+            } ?: repository.getAllMedicationsList().firstOrNull { it.name == nombreAnterior }
+
+            if (local == null) {
+                currentScreen.value = AppScreen.DASHBOARD
+                return@launch
+            }
+
+            MedicationAlarmScheduler.cancelMedicationAlarm(getApplication(), local.id)
+            val actualizado = local.copy(
+                name = nombre,
+                dosage = dosis,
+                scheduleTime = horaToma,
+                category = categoria,
+                instructions = indicaciones
+            )
+            repository.updateMedication(actualizado)
+            MedicationAlarmScheduler.scheduleMedicationAlarm(getApplication(), actualizado)
             currentScreen.value = AppScreen.DASHBOARD
         }
     }

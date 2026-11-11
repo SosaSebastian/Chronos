@@ -57,7 +57,8 @@ fun DashboardMedicamentosScreen(
     onNavigateToCalendario: () -> Unit = {},
     onNavigateToPerfil: () -> Unit = {},
     onNavigateToHistorial: () -> Unit = {},
-    onNavigateToAsistente: () -> Unit = {}
+    onNavigateToAsistente: () -> Unit = {},
+    onEditarMedicamento: (MedicamentoUiModel) -> Unit = {}
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -602,7 +603,8 @@ fun DashboardMedicamentosScreen(
                         MedicamentoCard(
                             medicamento = med,
                             onToggleTomado = { viewModel.toggleMedicationTaken(med) },
-                            onEliminar = { medicamentoParaEliminar = med }
+                            onEliminar = { medicamentoParaEliminar = med },
+                            onEditar = { onEditarMedicamento(med) }
                         )
                     }
                 }
@@ -863,7 +865,8 @@ fun FilaFiltroEstado(
 fun MedicamentoCard(
     medicamento: MedicamentoUiModel,
     onToggleTomado: () -> Unit,
-    onEliminar: () -> Unit
+    onEliminar: () -> Unit,
+    onEditar: () -> Unit = {}
 ) {
     val cardBorderColor by animateColorAsState(
         targetValue = if (medicamento.isTakenToday) StatusSuccess else NavySurfaceVariant,
@@ -939,18 +942,32 @@ fun MedicamentoCard(
                     }
                 }
 
-                // Botón discreto para eliminar
-                IconButton(
-                    onClick = onEliminar,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .testTag("btn_eliminar_${medicamento.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Eliminar medicamento",
-                        tint = TextMuted
-                    )
+                // Botones discretos para editar y eliminar
+                Row {
+                    IconButton(
+                        onClick = onEditar,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("btn_editar_${medicamento.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar medicamento",
+                            tint = TextMuted
+                        )
+                    }
+                    IconButton(
+                        onClick = onEliminar,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("btn_eliminar_${medicamento.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Eliminar medicamento",
+                            tint = TextMuted
+                        )
+                    }
                 }
             }
 
