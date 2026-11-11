@@ -223,8 +223,10 @@ class MainActivity : ComponentActivity() {
 
                             AppScreen.AI_ASSISTANT -> {
                                 AsistenteVirtualScreen(
-                                    patientName = userProfile?.fullName ?: "Sr. Sebastian",
-                                    emergencyPhone = userProfile?.emergencyContactPhone ?: "+57 310 456 7890",
+                                    patientName = userProfile?.fullName.orEmpty(),
+                                    // Sin contacto registrado, el botón llama a la línea de emergencias 123.
+                                    emergencyPhone = userProfile?.emergencyContactPhone?.takeIf { it.isNotBlank() }
+                                        ?: com.example.ai.AsistenteMedicacionManager.LINEA_EMERGENCIAS,
                                     messages = aiMessages,
                                     isLoading = isAiLoading,
                                     onSendMessage = { query ->

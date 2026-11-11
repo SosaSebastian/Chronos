@@ -139,6 +139,18 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
             Log.e(TAG, "Error emitiendo notificación de recordatorio: ${e.message}")
         }
 
+        // Aviso de dosis omitida: si no se confirma a tiempo, n8n envía un correo al usuario registrado.
+        if (medicationId > 0) {
+            DosisOmitidaNotifier.programarVerificacion(
+                context = context,
+                medicationId = medicationId,
+                nombre = name,
+                dosis = dosage,
+                horaProgramada = scheduleTime,
+                esPrueba = intent.action == MedicationAlarmScheduler.ACTION_TEST_REMINDER
+            )
+        }
+
         // Si es una alarma programada normal (no de prueba), reprogramar para mañana a la misma hora
         if (intent.action == MedicationAlarmScheduler.ACTION_MEDICATION_REMINDER && medicationId > 0) {
             val nextDayMillis = MedicationAlarmScheduler.calculateNextTriggerMillis(scheduleTime)

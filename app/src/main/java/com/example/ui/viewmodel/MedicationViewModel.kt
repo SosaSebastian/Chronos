@@ -48,7 +48,8 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         listOf(
             com.example.ai.MensajeChat(
                 id = "welcome_msg",
-                texto = "¡Hola! Soy tu asistente de medicación. Con mucho gusto puedo responder tus dudas sobre horarios, dosis y para qué sirve cada una de tus pastillas de hoy en texto claro y sencillo.",
+                // Primer mensaje: incluye el aviso médico obligatorio.
+                texto = com.example.ai.AsistenteMedicacionManager.MENSAJE_BIENVENIDA,
                 esDelUsuario = false
             )
         )
@@ -340,7 +341,9 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun askAssistant(query: String) {
-        if (query.isBlank()) return
+        if (query.isBlank() || _isAiLoading.value) return
+        // Conversación previa (sin la pregunta nueva) para que el asistente entienda preguntas de seguimiento.
+        val historialPrevio = _aiMessages.value
         val userMsg = com.example.ai.MensajeChat(
             texto = query,
             esDelUsuario = true
@@ -350,13 +353,15 @@ class MedicationViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             _isAiLoading.value = true
             try {
-                val currentPatientName = userProfile.value?.fullName ?: "Sr. Sebastian"
-                val currentEmergencyPhone = userProfile.value?.emergencyContactPhone ?: "+57 310 456 7890"
+                // Sin datos inventados: si el perfil no ha cargado, el asistente usa la línea de emergencias 123.
+                val currentPatientName = userProfile.value?.fullName.orEmpty()
+                val currentEmergencyPhone = userProfile.value?.emergencyContactPhone.orEmpty()
                 val respuesta = asistenteManager.responderConsulta(
                     preguntaUsuario = query,
                     medicamentosActivos = medications.value,
                     nombrePaciente = currentPatientName,
-                    telefonoEmergencia = currentEmergencyPhone
+                    telefonoEmergencia = currentEmergencyPhone,
+                    historial = historialPrevio
                 )
                 _aiMessages.value = _aiMessages.value + respuesta
             } catch (_: Exception) {

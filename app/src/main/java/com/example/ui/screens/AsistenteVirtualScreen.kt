@@ -39,8 +39,8 @@ import com.example.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AsistenteVirtualScreen(
-    patientName: String = "Sr. Sebastian",
-    emergencyPhone: String = "+57 310 456 7890",
+    patientName: String = "",
+    emergencyPhone: String = com.example.ai.AsistenteMedicacionManager.LINEA_EMERGENCIAS,
     messages: List<MensajeChat>,
     isLoading: Boolean,
     onSendMessage: (String) -> Unit,
@@ -90,7 +90,7 @@ fun AsistenteVirtualScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Para $patientName • En texto",
+                                text = if (patientName.isNotBlank()) "Para $patientName • En texto" else "Seguimiento de tus medicamentos",
                                 color = TextLightBlue,
                                 fontSize = 12.sp
                             )
@@ -252,17 +252,7 @@ fun AsistenteVirtualScreen(
                 DisclaimerCard()
             }
 
-            // Mensaje de bienvenida inicial en texto
-            item {
-                AssistantMessageBubble(
-                    message = MensajeChat(
-                        texto = "¡Hola $patientName! Soy tu asistente de medicación en texto. Estoy aquí para recordarte tus horarios, dosis y ayudarte a resolver cualquier duda sobre tus pastillas de hoy en forma clara y sencilla.",
-                        esDelUsuario = false
-                    ),
-                    emergencyPhone = emergencyPhone
-                )
-            }
-
+            // La bienvenida (con el aviso médico) es el primer mensaje de la lista, viene del ViewModel.
             items(messages, key = { it.id }) { msg ->
                 if (msg.esDelUsuario) {
                     UserMessageBubble(text = msg.texto)

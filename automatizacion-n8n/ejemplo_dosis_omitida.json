@@ -1,0 +1,22 @@
+{
+  "evento": "DOSIS_OMITIDA",
+  "esPrueba": true,
+  "fechaHora": "2026-11-10T08:30:00-05:00",
+  "minutosSinConfirmar": 30,
+  "paciente": {
+    "uid": "uid-de-prueba",
+    "nombre": "María Gómez",
+    "correo": "TU_CORREO@gmail.com"
+  },
+  "contactoEmergencia": {
+    "nombre": "Isabela Gómez",
+    "parentesco": "Hija",
+    "telefono": "+57 310 000 0000"
+  },
+  "medicamento": {
+    "id": 7,
+    "nombre": "Losartán",
+    "dosis": "50 mg",
+    "horaProgramada": "08:00 AM"
+  }
+}

@@ -371,7 +371,7 @@ class ExampleRobolectricTest {
             nombrePaciente = "Don Sebastian",
             telefonoEmergencia = "+57 310 456 7890"
         )
-        assertEquals("Soy tu asistente de medicación, solo puedo ayudarte con tus tratamientos y horarios. ¿Tienes alguna duda sobre tus pastillas de hoy?", respuestaOutOfScope.texto)
+        assertEquals(com.example.ai.AsistenteMedicacionManager.FRASE_FUERA_DE_ALCANCE, respuestaOutOfScope.texto)
     }
 
     // CASO DE USO 16: Nuevo Usuario - Cero Medicamentos Pre-Cargados

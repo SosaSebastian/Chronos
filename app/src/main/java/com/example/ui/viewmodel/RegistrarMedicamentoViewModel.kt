@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.model.Medicamento
 import com.example.data.model.Resource
 import com.example.data.repository.FirebaseMedicationRepository
+import com.example.util.DosisInvalidaException
+import com.example.util.ValidadorDosis
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -119,7 +121,12 @@ class RegistrarMedicamentoViewModel(
     private fun validateForm(): String? {
         val s = _formState.value
         if (s.nombre.trim().isBlank()) return "El nombre del medicamento es obligatorio (*)."
-        if (s.dosis.trim().isBlank()) return "La dosis o concentración es obligatoria (*)."
+        // CP01: una dosis vacía, sin cantidad, cero o negativa se rechaza sin cerrar la app.
+        try {
+            ValidadorDosis.validar(s.dosis)
+        } catch (e: DosisInvalidaException) {
+            return e.message
+        }
         if (s.horaToma.trim().isBlank()) return "La hora de la toma es obligatoria (*)."
         if (s.categoria.trim().isBlank()) return "Selecciona una categoría médica (*)."
         return null
