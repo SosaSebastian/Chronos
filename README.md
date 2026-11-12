@@ -251,7 +251,7 @@ users/{uid}
 
 1. **Escuchar** (`ReconocedorVoz`): reconocedor de voz de Android en español de Colombia; muestra en pantalla lo que el paciente va diciendo.
 2. **Pensar:** el texto reconocido pasa por los mismos pasos 2 a 6 de arriba (emergencias, alcance, Gemini, respaldo y aviso médico).
-3. **Hablar** (`LectorVoz`): lee la respuesta con la voz de Android, sin etiquetas ni emojis y con las unidades completas ("50 miligramos").
+3. **Hablar** (`LectorVoz`): lee la respuesta con la voz de Android, sin etiquetas ni emojis y con las unidades completas ("50 miligramos"). Entre las voces del celular escoge la de acento más cercano al colombiano (Colombia → latino de EE. UU. → México → España) y de mejor calidad, incluidas las voces mejoradas de Google.
 4. **Modo conversación** (opcional): después de responder vuelve a escuchar solo. Se detiene ante una alerta de emergencia, si no entiende o al salir de la pantalla.
 5. **Fallos controlados:** sin permiso de micrófono, sin conexión, sin reconocedor o si no entendió, muestra un mensaje claro y el paciente puede escribir. No usa servicios pagos ni claves adicionales.
 
@@ -288,7 +288,7 @@ El reporte queda en `app/build/reports/tests/testDebugUnitTest/index.html`.
 | `ValidacionFormulariosTest.kt` | 12 | Validación de los formularios de paciente y de medicamento, y modo edición |
 | `DosisOmitidaTest.kt` | 3 | Aviso de dosis omitida hacia n8n (CP07) |
 | `AsistenteIATest.kt` | 16 | Alcance, aviso médico, emergencias, respaldo sin internet e historial del asistente |
-| `VozAsistenteTest.kt` | 10 | Asistente de voz: limpieza del texto, errores, modo conversación y pantalla (VZ01–VZ10) |
+| `VozAsistenteTest.kt` | 11 | Asistente de voz: limpieza del texto, errores, modo conversación, elección de la voz y pantalla (VZ01–VZ11) |
 | `pruebas-firestore/` | 9 | Reglas de seguridad de Firestore (requiere Node 18+ y Java 11+: `npm install` y `npm run test:rules`) |
 
 **Datos de prueba sugeridos para la demostración:**

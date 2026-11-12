@@ -51,19 +51,22 @@ class LectorVoz(context: Context) : TextToSpeech.OnInitListener {
             pendiente = null
             return
         }
-        // Español de Colombia; si el celular no lo tiene, otro español.
-        val idiomas = listOf(Locale.forLanguageTag(VozUtils.IDIOMA), Locale.forLanguageTag("es-US"), Locale.forLanguageTag("es-ES"), Locale.forLanguageTag("es"))
+        // Acento: español latino, lo más parecido al colombiano (Colombia → EE. UU. latino → México → Latinoamérica → España).
+        val idiomas = VozUtils.ACENTOS_PREFERIDOS.map { Locale.forLanguageTag(it) } + Locale.forLanguageTag("es")
         listo = idiomas.any { idioma ->
             val r = motor.setLanguage(idioma)
             r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
         }
+        if (listo) elegirVozMasNatural(motor)
         if (!listo) {
             fallo = true
             pendiente?.second?.invoke()
             pendiente = null
             return
         }
-        motor.setSpeechRate(0.95f) // un poco más pausado, pensado en adultos mayores
+        // Velocidad y tono normales: más lento o más grave suena más robótico.
+        motor.setSpeechRate(VozUtils.VELOCIDAD)
+        motor.setPitch(VozUtils.TONO)
         motor.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) = Unit
 
@@ -76,6 +79,32 @@ class LectorVoz(context: Context) : TextToSpeech.OnInitListener {
         })
         pendiente?.let { (texto, despues) -> hablar(texto, despues) }
         pendiente = null
+    }
+
+    /**
+     * Entre todas las voces del celular escoge la más natural con acento latino
+     * (las voces "mejoradas" de Google suenan mucho menos robóticas que la voz por defecto).
+     */
+    private fun elegirVozMasNatural(motor: TextToSpeech) {
+        try {
+            val voces = motor.voices?.toList().orEmpty()
+            val opciones = voces.map { v ->
+                OpcionVoz(
+                    nombre = v.name,
+                    idioma = v.locale.language,
+                    pais = v.locale.country,
+                    calidad = v.quality,
+                    requiereInternet = v.isNetworkConnectionRequired,
+                    instalada = TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED !in v.features.orEmpty()
+                )
+            }
+            val elegida = VozUtils.elegirMejorVoz(opciones) ?: return
+            voces.firstOrNull { it.name == elegida.nombre }?.let { motor.voice = it }
+            Log.i(TAG, "Voz elegida: ${elegida.nombre} (${elegida.idioma}-${elegida.pais}, calidad ${elegida.calidad})")
+        } catch (e: Exception) {
+            // Si algo falla se queda la voz por defecto del idioma; la app sigue funcionando.
+            Log.w(TAG, "No se pudo elegir la voz: ${e.message}")
+        }
     }
 
     /** Lee [texto] en voz alta. Al terminar llama a [despues] (también si no se pudo leer). */

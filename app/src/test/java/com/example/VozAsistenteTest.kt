@@ -14,6 +14,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.example.ai.MensajeChat
 import com.example.ai.voz.EstadoEscucha
 import com.example.ai.voz.LectorVoz
+import com.example.ai.voz.OpcionVoz
 import com.example.ai.voz.ReconocedorVoz
 import com.example.ai.voz.VozUtils
 import com.example.ui.screens.AsistenteVirtualScreen
@@ -30,7 +31,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * Asistente de voz (VZ01–VZ10): escuchar → pensar (mismo asistente del chat) → hablar.
+ * Asistente de voz (VZ01–VZ11): escuchar → pensar (mismo asistente del chat) → hablar.
  * Las pruebas no usan el micrófono real: prueban las reglas, los fallos controlados y la pantalla.
  *
  * Ejecutar: ./gradlew testDebugUnitTest --tests "com.example.VozAsistenteTest"
@@ -123,6 +124,24 @@ class VozAsistenteTest {
         assertFalse(lector.hablando.value)
         lector.detener()
         lector.liberar()
+    }
+
+    // VZ11: se elige la voz más parecida a la colombiana y de mejor calidad (latina antes que de España; nunca una sin instalar).
+    @Test
+    fun vz11_eligeVozLatinaDeMejorCalidad() {
+        val voces = listOf(
+            OpcionVoz("es-es-x-eea-local", "es", "ES", calidad = 500, requiereInternet = false, instalada = true),
+            OpcionVoz("es-us-x-esc-local", "es", "US", calidad = 300, requiereInternet = false, instalada = true),
+            OpcionVoz("es-us-x-sfb-network", "es", "US", calidad = 400, requiereInternet = true, instalada = false),
+            OpcionVoz("es-us-x-esd-local", "es", "US", calidad = 400, requiereInternet = false, instalada = false),
+            OpcionVoz("en-us-x-iol-local", "en", "US", calidad = 500, requiereInternet = false, instalada = true)
+        )
+        assertEquals("es-us-x-sfb-network", VozUtils.elegirMejorVoz(voces)?.nombre)
+        // Si hay voz de Colombia, gana aunque tenga menos calidad.
+        val conColombia = voces + OpcionVoz("es-co-x-local", "spa", "COL", calidad = 300, requiereInternet = false, instalada = true)
+        assertEquals("es-co-x-local", VozUtils.elegirMejorVoz(conColombia)?.nombre)
+        // Sin voces en español no se cambia nada.
+        assertEquals(null, VozUtils.elegirMejorVoz(voces.filter { it.idioma == "en" }))
     }
 
     private var escuchas = 0
